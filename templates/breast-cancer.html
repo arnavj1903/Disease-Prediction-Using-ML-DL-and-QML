@@ -1,0 +1,233 @@
+{% extends "base.html" %}
+{% block title %}Breast Cancer Prediction{% endblock %}
+{% block content %}
+    <h1 class="text-center">Breast Cancer Prediction</h1>
+    <form id="searchForm" method="post" class="row g-3 mb-3">
+        <div class="col-6">
+            <div class="input-group">
+                <input type="text" name="name" id="patientName" class="form-control" placeholder="Patient Name" required>
+                <button type="submit" class="btn btn-secondary">Search</button>
+            </div>
+        </div>
+    </form>
+    <form id="predictionForm" method="post" action="{{ url_for('predict', disease='breast-cancer') }}" class="row g-3">
+        <div class="col-6">
+            <select name="model" class="form-select" required>
+                <option value="">Select Model</option>
+                <option value="KNN">KNN</option>
+                <option value="DT">Decision Tree</option>
+                <option value="RF">Random Forest</option>
+                <option value="LR">Logistic Regression</option>
+                <option value="SVM">SVM</option>
+                <option value="NB">Naive Bayes</option>
+                <option value="DL">Deep Learning</option>
+            </select>
+        </div>
+        <div class="col-6">
+            <input type="number" name="radius_mean" class="form-control" placeholder="Radius Mean" step="0.01" required>
+        </div>
+        <div class="col-6">
+            <input type="number" name="texture_mean" class="form-control" placeholder="Texture Mean" step="0.01" required>
+        </div>
+        <div class="col-6">
+            <input type="number" name="perimeter_mean" class="form-control" placeholder="Perimeter Mean" step="0.01" required>
+        </div>
+        <div class="col-6">
+            <input type="number" name="area_mean" class="form-control" placeholder="Area Mean" step="0.01" required>
+        </div>
+        <div class="col-6">
+            <input type="number" name="smoothness_mean" class="form-control" placeholder="Smoothness Mean" step="0.0001" required>
+        </div>
+        <div class="col-6">
+            <input type="number" name="compactness_mean" class="form-control" placeholder="Compactness Mean" step="0.0001" required>
+        </div>
+        <div class="col-6">
+            <input type="number" name="concavity_mean" class="form-control" placeholder="Concavity Mean" step="0.0001" required>
+        </div>
+        <div class="col-6">
+            <input type="number" name="concave_points_mean" class="form-control" placeholder="Concave Points Mean" step="0.0001" required>
+        </div>
+        <div class="col-6">
+            <input type="number" name="symmetry_mean" class="form-control" placeholder="Symmetry Mean" step="0.0001" required>
+        </div>
+        <div class="col-6">
+            <input type="number" name="fractal_dimension_mean" class="form-control" placeholder="Fractal Dimension Mean" step="0.0001" required>
+        </div>
+        <div class="col-6">
+            <input type="number" name="radius_se" class="form-control" placeholder="Radius SE" step="0.01" required>
+        </div>
+        <div class="col-6">
+            <input type="number" name="texture_se" class="form-control" placeholder="Texture SE" step="0.01" required>
+        </div>
+        <div class="col-6">
+            <input type="number" name="perimeter_se" class="form-control" placeholder="Perimeter SE" step="0.01" required>
+        </div>
+        <div class="col-6">
+            <input type="number" name="area_se" class="form-control" placeholder="Area SE" step="0.01" required>
+        </div>
+        <div class="col-6">
+            <input type="number" name="smoothness_se" class="form-control" placeholder="Smoothness SE" step="0.0001" required>
+        </div>
+        <div class="col-6">
+            <input type="number" name="compactness_se" class="form-control" placeholder="Compactness SE" step="0.0001" required>
+        </div>
+        <div class="col-6">
+            <input type="number" name="concavity_se" class="form-control" placeholder="Concavity SE" step="0.0001" required>
+        </div>
+        <div class="col-6">
+            <input type="number" name="concave_points_se" class="form-control" placeholder="Concave Points SE" step="0.0001" required>
+        </div>
+        <div class="col-6">
+            <input type="number" name="symmetry_se" class="form-control" placeholder="Symmetry SE" step="0.0001" required>
+        </div>
+        <div class="col-6">
+            <input type="number" name="fractal_dimension_se" class="form-control" placeholder="Fractal Dimension SE" step="0.0001" required>
+        </div>
+        <div class="col-6">
+            <input type="number" name="radius_worst" class="form-control" placeholder="Radius Worst" step="0.01" required>
+        </div>
+        <div class="col-6">
+            <input type="number" name="texture_worst" class="form-control" placeholder="Texture Worst" step="0.01" required>
+        </div>
+        <div class="col-6">
+            <input type="number" name="perimeter_worst" class="form-control" placeholder="Perimeter Worst" step="0.01" required>
+        </div>
+        <div class="col-6">
+            <input type="number" name="area_worst" class="form-control" placeholder="Area Worst" step="0.01" required>
+        </div>
+        <div class="col-6">
+            <input type="number" name="smoothness_worst" class="form-control" placeholder="Smoothness Worst" step="0.0001" required>
+        </div>
+        <div class="col-6">
+            <input type="number" name="compactness_worst" class="form-control" placeholder="Compactness Worst" step="0.0001" required>
+        </div>
+        <div class="col-6">
+            <input type="number" name="concavity_worst" class="form-control" placeholder="Concavity Worst" step="0.0001" required>
+        </div>
+        <div class="col-6">
+            <input type="number" name="concave_points_worst" class="form-control" placeholder="Concave Points Worst" step="0.0001" required>
+        </div>
+        <div class="col-6">
+            <input type="number" name="symmetry_worst" class="form-control" placeholder="Symmetry Worst" step="0.0001" required>
+        </div>
+        <div class="col-6">
+            <input type="number" name="fractal_dimension_worst" class="form-control" placeholder="Fractal Dimension Worst" step="0.0001" required>
+        </div>
+        <div class="col-12 text-center">
+            <input type="hidden" name="name" value="{{ name if name else '' }}">
+            <button type="submit" class="btn btn-primary">Predict</button>
+        </div>
+    </form>
+    {% if error %}
+        <div class="alert alert-danger mt-4">{{ error }}</div>
+    {% elif prediction is not none %}
+        <div class="alert alert-info mt-4">
+            <h4>Prediction Result for {{ name }}</h4>
+            <p>Breast Cancer Diagnosis: {{ 'Malignant' if prediction == 1 else 'Benign' }}</p>
+        </div>
+    {% endif %}
+    {% if records %}
+        <div class="mt-4">
+            <h4>Existing Records for {{ name }}</h4>
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Radius Mean</th>
+                        <th>Texture Mean</th>
+                        <th>Perimeter Mean</th>
+                        <th>Area Mean</th>
+                        <th>Smoothness Mean</th>
+                        <th>Compactness Mean</th>
+                        <th>Concavity Mean</th>
+                        <th>Concave Points Mean</th>
+                        <th>Symmetry Mean</th>
+                        <th>Fractal Dimension Mean</th>
+                        <th>Radius SE</th>
+                        <th>Texture SE</th>
+                        <th>Perimeter SE</th>
+                        <th>Area SE</th>
+                        <th>Smoothness SE</th>
+                        <th>Compactness SE</th>
+                        <th>Concavity SE</th>
+                        <th>Concave Points SE</th>
+                        <th>Symmetry SE</th>
+                        <th>Fractal Dimension SE</th>
+                        <th>Radius Worst</th>
+                        <th>Texture Worst</th>
+                        <th>Perimeter Worst</th>
+                        <th>Area Worst</th>
+                        <th>Smoothness Worst</th>
+                        <th>Compactness Worst</th>
+                        <th>Concavity Worst</th>
+                        <th>Concave Points Worst</th>
+                        <th>Symmetry Worst</th>
+                        <th>Fractal Dimension Worst</th>
+                        <th>Result</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for record in records %}
+                        <tr>
+                            <td>{{ record.id }}</td>
+                            <td>{{ record.features[0] }}</td>
+                            <td>{{ record.features[1] }}</td>
+                            <td>{{ record.features[2] }}</td>
+                            <td>{{ record.features[3] }}</td>
+                            <td>{{ record.features[4] }}</td>
+                            <td>{{ record.features[5] }}</td>
+                            <td>{{ record.features[6] }}</td>
+                            <td>{{ record.features[7] }}</td>
+                            <td>{{ record.features[8] }}</td>
+                            <td>{{ record.features[9] }}</td>
+                            <td>{{ record.features[10] }}</td>
+                            <td>{{ record.features[11] }}</td>
+                            <td>{{ record.features[12] }}</td>
+                            <td>{{ record.features[13] }}</td>
+                            <td>{{ record.features[14] }}</td>
+                            <td>{{ record.features[15] }}</td>
+                            <td>{{ record.features[16] }}</td>
+                            <td>{{ record.features[17] }}</td>
+                            <td>{{ record.features[18] }}</td>
+                            <td>{{ record.features[19] }}</td>
+                            <td>{{ record.features[20] }}</td>
+                            <td>{{ record.features[21] }}</td>
+                            <td>{{ record.features[22] }}</td>
+                            <td>{{ record.features[23] }}</td>
+                            <td>{{ record.features[24] }}</td>
+                            <td>{{ record.features[25] }}</td>
+                            <td>{{ record.features[26] }}</td>
+                            <td>{{ record.features[27] }}</td>
+                            <td>{{ record.features[28] }}</td>
+                            <td>{{ record.features[29] }}</td>
+                            <td>{{ 'Malignant' if record.result == 1 else 'Benign' }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% endif %}
+    <script>
+        document.getElementById('searchForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const name = document.getElementById('patientName').value;
+            const response = await fetch(`/search/breast-cancer`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: new URLSearchParams({ 'name': name })
+            });
+            const data = await response.json();
+            if (data.records && data.records.length > 0) {
+                const inputs = document.querySelectorAll('#predictionForm input[type="number"]');
+                data.records[0].features.forEach((value, index) => {
+                    if (inputs[index]) {
+                        inputs[index].value = value;
+                    }
+                });
+                document.querySelector('input[name="name"]').value = name;
+                // Reload page with records
+                window.location.href = `/breast-cancer?name=${encodeURIComponent(name)}`;
+            }
+        });
+    </script>
+{% endblock %}

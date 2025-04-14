@@ -1,0 +1,205 @@
+{% extends "base.html" %}
+{% block title %}Heart Attack Prediction{% endblock %}
+{% block content %}
+    <h1 class="text-center">Heart Attack Prediction</h1>
+    <form id="searchForm" method="post" class="row g-3 mb-3">
+        <div class="col-6">
+            <div class="input-group">
+                <input type="text" name="name" id="patientName" class="form-control" placeholder="Patient Name" required>
+                <button type="submit" class="btn btn-secondary">Search</button>
+            </div>
+        </div>
+    </form>
+    <form id="predictionForm" method="post" action="{{ url_for('predict', disease='heart-attack') }}" class="row g-3">
+        <div class="col-6">
+            <select name="model" class="form-select" required>
+                <option value="">Select Model</option>
+                <option value="KNN">KNN</option>
+                <option value="DT">Decision Tree</option>
+                <option value="RF">Random Forest</option>
+                <option value="LR">Logistic Regression</option>
+                <option value="SVM">SVM</option>
+                <option value="NB">Naive Bayes</option>
+                <option value="DL">Deep Learning</option>
+            </select>
+        </div>
+        <div class="col-6">
+            <input type="number" name="age" class="form-control" placeholder="Age" required>
+        </div>
+        <div class="col-6">
+            <select name="sex" class="form-select" required>
+                <option value="">Select Sex</option>
+                <option value="female">Female</option>
+                <option value="male">Male</option>
+            </select>
+        </div>
+        <div class="col-6">
+            <select name="cp" class="form-select" required>
+                <option value="">Select Chest Pain Type</option>
+                <option value="typical_angina">Typical Angina</option>
+                <option value="atypical_angina">Atypical Angina</option>
+                <option value="non_anginal_pain">Non-Anginal Pain</option>
+                <option value="asymptomatic">Asymptomatic</option>
+            </select>
+        </div>
+        <div class="col-6">
+            <input type="number" name="trestbps" class="form-control" placeholder="Resting Blood Pressure" required>
+        </div>
+        <div class="col-6">
+            <input type="number" name="chol" class="form-control" placeholder="Cholesterol" required>
+        </div>
+        <div class="col-6">
+            <select name="fbs" class="form-select" required>
+                <option value="">Select Fasting Blood Sugar</option>
+                <option value="false">False (≤ 120 mg/dl)</option>
+                <option value="true">True (> 120 mg/dl)</option>
+            </select>
+        </div>
+        <div class="col-6">
+            <select name="restecg" class="form-select" required>
+                <option value="">Select Resting ECG</option>
+                <option value="normal">Normal</option>
+                <option value="st_t_abnormality">ST-T Wave Abnormality</option>
+                <option value="lv_hypertrophy">Probable/Definite LV Hypertrophy</option>
+            </select>
+        </div>
+        <div class="col-6">
+            <input type="number" name="thalach" class="form-control" placeholder="Max Heart Rate" required>
+        </div>
+        <div class="col-6">
+            <select name="exang" class="form-select" required>
+                <option value="">Select Exercise Induced Angina</option>
+                <option value="no">No</option>
+                <option value="yes">Yes</option>
+            </select>
+        </div>
+        <div class="col-6">
+            <input type="number" name="oldpeak" class="form-control" placeholder="ST Depression" step="0.1" required>
+        </div>
+        <div class="col-6">
+            <select name="slope" class="form-select" required>
+                <option value="">Select Slope</option>
+                <option value="upsloping">Upsloping</option>
+                <option value="flat">Flat</option>
+                <option value="downsloping">Downsloping</option>
+            </select>
+        </div>
+        <div class="col-6">
+            <select name="ca" class="form-select" required>
+                <option value="">Select Major Vessels</option>
+                <option value="0">0</option>
+                <option value="1">1</option>
+                <option value="2">2</option>
+                <option value="3">3</option>
+            </select>
+        </div>
+        <div class="col-6">
+            <select name="thal" class="form-select" required>
+                <option value="">Select Thalassemia</option>
+                <option value="normal">Normal</option>
+                <option value="fixed_defect">Fixed Defect</option>
+                <option value="reversible_defect">Reversible Defect</option>
+                <option value="other">Other</option>
+            </select>
+        </div>
+        <div class="col-12 text-center">
+            <input type="hidden" name="name" value="{{ name if name else '' }}">
+            <button type="submit" class="btn btn-primary">Predict</button>
+        </div>
+    </form>
+    {% if error %}
+        <div class="alert alert-danger mt-4">{{ error }}</div>
+    {% elif prediction is not none %}
+        <div class="alert alert-info mt-4">
+            <h4>Prediction Result for {{ name }}</h4>
+            <p>Heart Attack Risk: {{ 'Positive' if prediction == 1 else 'Negative' }}</p>
+        </div>
+    {% endif %}
+    {% if records %}
+        <div class="mt-4">
+            <h4>Existing Records for {{ name }}</h4>
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Age</th>
+                        <th>Sex</th>
+                        <th>Chest Pain</th>
+                        <th>Resting BP</th>
+                        <th>Cholesterol</th>
+                        <th>FBS</th>
+                        <th>Rest ECG</th>
+                        <th>Max HR</th>
+                        <th>Exang</th>
+                        <th>Oldpeak</th>
+                        <th>Slope</th>
+                        <th>Ca</th>
+                        <th>Thal</th>
+                        <th>Result</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for record in records %}
+                        <tr>
+                            <td>{{ record.id }}</td>
+                            <td>{{ record.age }}</td>
+                            <td>{{ 'Female' if record.features[1] == 0 else 'Male' }}</td>
+                            <td>{{ ['Typical Angina', 'Atypical Angina', 'Non-Anginal Pain', 'Asymptomatic'][record.features[2]] }}</td>
+                            <td>{{ record.features[3] }}</td>
+                            <td>{{ record.features[4] }}</td>
+                            <td>{{ 'False' if record.features[5] == 0 else 'True' }}</td>
+                            <td>{{ ['Normal', 'ST-T Wave Abnormality', 'LV Hypertrophy'][record.features[6]] }}</td>
+                            <td>{{ record.features[7] }}</td>
+                            <td>{{ 'No' if record.features[8] == 0 else 'Yes' }}</td>
+                            <td>{{ record.features[9] }}</td>
+                            <td>{{ ['Upsloping', 'Flat', 'Downsloping'][record.features[10]] }}</td>
+                            <td>{{ record.features[11] }}</td>
+                            <td>{{ ['Normal', 'Fixed Defect', 'Reversible Defect', 'Other'][record.features[12]] }}</td>
+                            <td>{{ 'Positive' if record.result == 1 else 'Negative' }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% endif %}
+    <script>
+        document.getElementById('searchForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const name = document.getElementById('patientName').value;
+            const response = await fetch(`/search/heart-attack`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: new URLSearchParams({ 'name': name })
+            });
+            const data = await response.json();
+            if (data.records && data.records.length > 0) {
+                const inputs = document.querySelectorAll('#predictionForm input[type="number"], #predictionForm select');
+                const featureNames = ['age', 'sex', 'cp', 'trestbps', 'chol', 'fbs', 'restecg', 'thalach', 'exang', 'oldpeak', 'slope', 'ca', 'thal'];
+                const labelMaps = {
+                    'sex': { 0: 'female', 1: 'male' },
+                    'cp': { 0: 'typical_angina', 1: 'atypical_angina', 2: 'non_anginal_pain', 3: 'asymptomatic' },
+                    'fbs': { 0: 'false', 1: 'true' },
+                    'restecg': { 0: 'normal', 1: 'st_t_abnormality', 2: 'lv_hypertrophy' },
+                    'exang': { 0: 'no', 1: 'yes' },
+                    'slope': { 0: 'upsloping', 1: 'flat', 2: 'downsloping' },
+                    'ca': { 0: '0', 1: '1', 2: '2', 3: '3' },
+                    'thal': { 0: 'normal', 1: 'fixed_defect', 2: 'reversible_defect', 3: 'other' }
+                };
+                // Populate form with the first record
+                data.records[0].features.forEach((value, index) => {
+                    if (inputs[index]) {
+                        const feature = featureNames[index];
+                        if (feature in labelMaps) {
+                            inputs[index].value = labelMaps[feature][value] || '';
+                        } else {
+                            inputs[index].value = value;
+                        }
+                    }
+                });
+                document.querySelector('input[name="name"]').value = name;
+                // Reload page with records
+                window.location.href = `/heart-attack?name=${encodeURIComponent(name)}`;
+            }
+        });
+    </script>
+{% endblock %}

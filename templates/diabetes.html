@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% block title %}Diabetes Prediction{% endblock %}
+{% block content %}
+    <h1 class="text-center">Diabetes Prediction</h1>
+    <form id="searchForm" method="post" class="row g-3 mb-3">
+        <div class="col-6">
+            <div class="input-group">
+                <input type="text" name="name" id="patientName" class="form-control" placeholder="Patient Name" required>
+                <button type="submit" class="btn btn-secondary">Search</button>
+            </div>
+        </div>
+    </form>
+    <form id="predictionForm" method="post" action="{{ url_for('predict', disease='diabetes') }}" class="row g-3">
+        <div class="col-6">
+            <select name="model" class="form-select" required>
+                <option value="">Select Model</option>
+                <option value="KNN">KNN</option>
+                <option value="DT">Decision Tree</option>
+                <option value="RF">Random Forest</option>
+                <option value="LR">Logistic Regression</option>
+                <option value="SVM">SVM</option>
+                <option value="NB">Naive Bayes</option>
+                <option value="DL">Deep Learning</option>
+            </select>
+        </div>
+        <div class="col-6">
+            <input type="number" name="Pregnancies" class="form-control" placeholder="Pregnancies" required>
+        </div>
+        <div class="col-6">
+            <input type="number" name="Glucose" class="form-control" placeholder="Glucose" required>
+        </div>
+        <div class="col-6">
+            <input type="number" name="BloodPressure" class="form-control" placeholder="Blood Pressure" required>
+        </div>
+        <div class="col-6">
+            <input type="number" name="SkinThickness" class="form-control" placeholder="Skin Thickness" required>
+        </div>
+        <div class="col-6">
+            <input type="number" name="Insulin" class="form-control" placeholder="Insulin" required>
+        </div>
+        <div class="col-6">
+            <input type="number" name="BMI" class="form-control" placeholder="BMI" step="0.1" required>
+        </div>
+        <div class="col-6">
+            <input type="number" name="DiabetesPedigreeFunction" class="form-control" placeholder="Diabetes Pedigree Function" step="0.001" required>
+        </div>
+        <div class="col-6">
+            <input type="number" name="Age" class="form-control" placeholder="Age" required>
+        </div>
+        <div class="col-12 text-center">
+            <input type="hidden" name="name" value="{{ name if name else '' }}">
+            <button type="submit" class="btn btn-primary">Predict</button>
+        </div>
+    </form>
+    {% if error %}
+        <div class="alert alert-danger mt-4">{{ error }}</div>
+    {% elif prediction is not none %}
+        <div class="alert alert-info mt-4">
+            <h4>Prediction Result for {{ name }}</h4>
+            <p>Diabetes Diagnosis: {{ 'Positive' if prediction == 1 else 'Negative' }}</p>
+        </div>
+    {% endif %}
+    {% if records %}
+        <div class="mt-4">
+            <h4>Existing Records for {{ name }}</h4>
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Age</th>
+                        <th>Pregnancies</th>
+                        <th>Glucose</th>
+                        <th>Blood Pressure</th>
+                        <th>Skin Thickness</th>
+                        <th>Insulin</th>
+                        <th>BMI</th>
+                        <th>Diabetes Pedigree</th>
+                        <th>Result</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for record in records %}
+                        <tr>
+                            <td>{{ record.id }}</td>
+                            <td>{{ record.age }}</td>
+                            <td>{{ record.features[0] }}</td>
+                            <td>{{ record.features[1] }}</td>
+                            <td>{{ record.features[2] }}</td>
+                            <td>{{ record.features[3] }}</td>
+                            <td>{{ record.features[4] }}</td>
+                            <td>{{ record.features[5] }}</td>
+                            <td>{{ record.features[6] }}</td>
+                            <td>{{ 'Positive' if record.result == 1 else 'Negative' }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% endif %}
+    <script>
+        document.getElementById('searchForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const name = document.getElementById('patientName').value;
+            const response = await fetch(`/search/diabetes`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: new URLSearchParams({ 'name': name })
+            });
+            const data = await response.json();
+            if (data.records && data.records.length > 0) {
+                const inputs = document.querySelectorAll('#predictionForm input[type="number"]');
+                data.records[0].features.forEach((value, index) => {
+                    if (inputs[index]) {
+                        inputs[index].value = value;
+                    }
+                });
+                document.querySelector('input[name="name"]').value = name;
+                // Reload page with records
+                window.location.href = `/diabetes?name=${encodeURIComponent(name)}`;
+            }
+        });
+    </script>
+{% endblock %}
