@@ -5,7 +5,7 @@
     <form id="searchForm" method="post" class="row g-3 mb-3">
         <div class="col-6">
             <div class="input-group">
-                <input type="text" name="name" id="patientName" class="form-control" placeholder="Patient Name" required>
+                <input type="text" name="name" id="patientName" class="form-control" placeholder="Patient Name" value="{{ name }}" required>
                 <button type="submit" class="btn btn-secondary">Search</button>
             </div>
         </div>
@@ -60,7 +60,9 @@
             <p>Diabetes Diagnosis: {{ 'Positive' if prediction == 1 else 'Negative' }}</p>
         </div>
     {% endif %}
-    {% if records %}
+    {% if no_records %}
+        <div class="alert alert-warning mt-4">No records found for {{ name }}</div>
+    {% elif records %}
         <div class="mt-4">
             <h4>Existing Records for {{ name }}</h4>
             <table class="table table-striped">
@@ -114,10 +116,8 @@
                         inputs[index].value = value;
                     }
                 });
-                document.querySelector('input[name="name"]').value = name;
-                // Reload page with records
-                window.location.href = `/diabetes?name=${encodeURIComponent(name)}`;
             }
+            window.location.href = `/diabetes?name=${encodeURIComponent(name)}`;
         });
     </script>
 {% endblock %}

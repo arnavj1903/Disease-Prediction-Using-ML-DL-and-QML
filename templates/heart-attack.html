@@ -5,7 +5,7 @@
     <form id="searchForm" method="post" class="row g-3 mb-3">
         <div class="col-6">
             <div class="input-group">
-                <input type="text" name="name" id="patientName" class="form-control" placeholder="Patient Name" required>
+                <input type="text" name="name" id="patientName" class="form-control" placeholder="Patient Name" value="{{ name }}" required>
                 <button type="submit" class="btn btn-secondary">Search</button>
             </div>
         </div>
@@ -115,7 +115,9 @@
             <p>Heart Attack Risk: {{ 'Positive' if prediction == 1 else 'Negative' }}</p>
         </div>
     {% endif %}
-    {% if records %}
+    {% if no_records %}
+        <div class="alert alert-warning mt-4">No records found for {{ name }}</div>
+    {% elif records %}
         <div class="mt-4">
             <h4>Existing Records for {{ name }}</h4>
             <table class="table table-striped">
@@ -185,10 +187,9 @@
                     'ca': { 0: '0', 1: '1', 2: '2', 3: '3' },
                     'thal': { 0: 'normal', 1: 'fixed_defect', 2: 'reversible_defect', 3: 'other' }
                 };
-                // Populate form with the first record
                 data.records[0].features.forEach((value, index) => {
+                    const feature = featureNames[index];
                     if (inputs[index]) {
-                        const feature = featureNames[index];
                         if (feature in labelMaps) {
                             inputs[index].value = labelMaps[feature][value] || '';
                         } else {
@@ -196,10 +197,8 @@
                         }
                     }
                 });
-                document.querySelector('input[name="name"]').value = name;
-                // Reload page with records
-                window.location.href = `/heart-attack?name=${encodeURIComponent(name)}`;
             }
+            window.location.href = `/heart-attack?name=${encodeURIComponent(name)}`;
         });
     </script>
 {% endblock %}

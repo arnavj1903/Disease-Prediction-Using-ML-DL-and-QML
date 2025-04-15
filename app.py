@@ -5,16 +5,14 @@ import os
 from dotenv import load_dotenv
 import logging
 import numpy as np
+from uuid import uuid4
 
 load_dotenv()
 app = Flask(__name__)
-app.config['SECRET_KEY'] = "my_medical_app"
+app.config['SECRET_KEY'] = str(uuid4())  # Use a random UUID for security
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///medical.db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
-
-@app.route('/favicon.ico')
-def favicon():
-    return '', 204  # Return no content, prevents 500 error
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
@@ -84,15 +82,10 @@ with app.app_context():
     db.create_all()
 logger.info("Database initialized successfully")
 
-# Clear session on first request to force login
-@app.before_request
-def clear_session_on_start():
-    if not hasattr(app, 'session_cleared'):
-        session.clear()
-        logger.info("Session cleared on first request")
-        app.session_cleared = True
+@app.route('/favicon.ico')
+def favicon():
+    return '', 204
 
-# Routes
 @app.route('/')
 def home():
     if 'username' in session:
@@ -151,25 +144,36 @@ def logout():
 def disease_page(disease):
     if 'username' not in session:
         return redirect(url_for('login'))
-    name = request.args.get('name')
+    name = request.args.get('name', '')
     records = None
+    no_records = False
     if name:
         doctor = Doctor.query.filter_by(username=session['username']).first()
         records = PatientData.query.filter_by(doctor_id=doctor.id, name=name, disease=disease).all()
-        records = [{
-            'id': r.id,
-            'age': r.age,
-            'features': r.features,
-            'result': r.result
-        } for r in records] if records else None
-    return render_template(f'{disease}.html', prediction=None, name=name, error=None, records=records)
+        if records:
+            records = [{
+                'id': r.id,
+                'age': r.age,
+                'features': r.features,
+                'result': r.result
+            } for r in records]
+        else:
+            no_records = True
+    return render_template(f'{disease}.html', prediction=None, name=name, error=None, records=records, no_records=no_records)
 
 @app.route('/search/<disease>', methods=['POST'])
 def search_patient(disease):
     if 'username' not in session:
-        return jsonify({'records': None})
+        return jsonify({'records': None, 'no_records': True})
+    
     name = request.form.get('name')
+    if not name:
+        return jsonify({'records': None, 'no_records': True})
+    
     doctor = Doctor.query.filter_by(username=session['username']).first()
+    if not doctor:
+        return jsonify({'records': None, 'no_records': True})
+    
     records = PatientData.query.filter_by(doctor_id=doctor.id, name=name, disease=disease).all()
     if records:
         return jsonify({
@@ -178,9 +182,10 @@ def search_patient(disease):
                 'age': r.age,
                 'features': r.features,
                 'result': r.result
-            } for r in records]
+            } for r in records],
+            'no_records': False
         })
-    return jsonify({'records': None})
+    return jsonify({'records': None, 'no_records': True})
 
 @app.route('/predict/<disease>', methods=['POST'])
 def predict(disease):
@@ -188,7 +193,7 @@ def predict(disease):
         return redirect(url_for('login'))
     doctor = Doctor.query.filter_by(username=session['username']).first()
     model_type = request.form['model']
-    name = request.form.get('name')
+    name = request.form.get('name', '')
     
     # Define feature lists for each disease
     feature_lists = {
@@ -207,7 +212,7 @@ def predict(disease):
         ]
     }
     
-    # Mapping of human-readable labels to numeric values for all diseases
+    # Mapping of human-readable labels to numeric values
     label_to_numeric = {
         'heart-attack': {
             'sex': {'female': 0, 'male': 1},
@@ -241,72 +246,78 @@ def predict(disease):
         }
     }
     
-    # Convert features, handling categorical conversions
+    # Convert features
     features = []
     age = None
     for feature in feature_lists[disease]:
         value = request.form.get(feature)
+        if not value:
+            return render_template(f'{disease}.html', prediction=None, name=name, error=f"Missing value for {feature}", records=None, no_records=False)
+        
         if disease in label_to_numeric and feature in label_to_numeric[disease]:
             value = label_to_numeric[disease][feature].get(value, None)
             if value is None:
-                return render_template(f'{disease}.html', prediction=None, name=name, error=f"Invalid value for {feature}", records=None)
+                return render_template(f'{disease}.html', prediction=None, name=name, error=f"Invalid value for {feature}", records=None, no_records=False)
         else:
             try:
-                value = float(value) if value else None
-                if value is None:
-                    return render_template(f'{disease}.html', prediction=None, name=name, error=f"Missing value for {feature}", records=None)
+                value = float(value)
             except ValueError:
-                return render_template(f'{disease}.html', prediction=None, name=name, error=f"Invalid value for {feature}", records=None)
+                return render_template(f'{disease}.html', prediction=None, name=name, error=f"Invalid value for {feature}", records=None, no_records=False)
+        
         features.append(value)
-        if feature.lower() == 'age':
+        if feature.lower() in ['age', 'AGE']:
             age = int(value)
     
-    # Scale the features using the disease-specific scaler
+    # Scale features
     try:
         scaler = models[disease]['scaler']
         scaled_features = scaler.transform([features])[0]
         logger.info(f"Features scaled for {disease} prediction")
     except Exception as e:
         logger.error(f"Scaling error for {disease}: {str(e)}")
-        return render_template(f'{disease}.html', prediction=None, name=name, error="Error in scaling features", records=None)
+        return render_template(f'{disease}.html', prediction=None, name=name, error="Error in scaling features", records=None, no_records=False)
     
-    # Prepare input for prediction
+    # Make prediction
     try:
         if model_type == 'DL':
-            # Reshape for TensorFlow/Keras model: from (13,) to (1, 13) for heart-attack
             model_input = np.array([scaled_features])
             prediction = models[disease][model_type].predict(model_input)[0]
-            # Handle binary classification output (e.g., sigmoid output)
             prediction = 1 if prediction >= 0.5 else 0
         else:
-            # Non-DL models accept 1D array
             model_input = [scaled_features]
             prediction = models[disease][model_type].predict(model_input)[0]
         logger.info(f"Prediction for {name} with {model_type}: {prediction}")
     except Exception as e:
         logger.error(f"Prediction error for {disease} with {model_type}: {str(e)}")
-        return render_template(f'{disease}.html', prediction=None, name=name, error="Error in prediction", records=None)
+        return render_template(f'{disease}.html', prediction=None, name=name, error="Error in prediction", records=None, no_records=False)
     
-    # Check for existing record and update if name and age match
-    patient = PatientData.query.filter_by(doctor_id=doctor.id, name=name, disease=disease, age=age).first()
-    if patient:
-        patient.features = features  # Store unscaled features for display
-        patient.result = prediction
-    else:
-        new_patient = PatientData(doctor_id=doctor.id, name=name, disease=disease, age=age, features=features, result=prediction)
-        db.session.add(new_patient)
-    db.session.commit()
+    # Store or update patient data
+    if name:
+        patient = PatientData.query.filter_by(doctor_id=doctor.id, name=name, disease=disease, age=age).first()
+        if patient:
+            patient.features = features
+            patient.result = prediction
+        else:
+            new_patient = PatientData(doctor_id=doctor.id, name=name, disease=disease, age=age, features=features, result=prediction)
+            db.session.add(new_patient)
+        db.session.commit()
     
-    # Fetch all records for the name and disease to display
-    records = PatientData.query.filter_by(doctor_id=doctor.id, name=name, disease=disease).all()
-    records_data = [{
-        'id': r.id,
-        'age': r.age,
-        'features': r.features,
-        'result': r.result
-    } for r in records] if records else None
+    # Fetch records for display
+    records = None
+    no_records = False
+    if name:
+        records = PatientData.query.filter_by(doctor_id=doctor.id, name=name, disease=disease).all()
+        if records:
+            records = [{
+                'id': r.id,
+                'age': r.age,
+                'features': r.features,
+                'result': r.result
+            } for r in records]
+        else:
+            no_records = True
     
-    return render_template(f'{disease}.html', prediction=prediction, name=name, error=None, records=records_data)
+    return render_template(f'{disease}.html', prediction=prediction, name=name, error=None, records=records, no_records=no_records)
 
 if __name__ == '__main__':
     try:
