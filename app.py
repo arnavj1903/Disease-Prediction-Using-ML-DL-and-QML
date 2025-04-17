@@ -6,6 +6,9 @@ from dotenv import load_dotenv
 import logging
 import numpy as np
 from uuid import uuid4
+import google.generativeai as genai  # Import Gemini API library
+import requests
+import re
 
 load_dotenv()
 app = Flask(__name__)
@@ -17,6 +20,14 @@ db = SQLAlchemy(app)
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
+
+
+GEMINI_API_KEY = "AIzaSyAngvpflodR7WNa7BjEneKwhlQvx8Nvx9Q"
+if not GEMINI_API_KEY:
+    logger.error("Gemini API key not found in .env file")
+else:
+    genai.configure(api_key=GEMINI_API_KEY)
+    logger.info("Gemini API configured successfully")
 
 # Load models and scalers
 models = {
@@ -81,6 +92,42 @@ class PatientData(db.Model):
 with app.app_context():
     db.create_all()
 logger.info("Database initialized successfully")
+
+def get_gemini_recommendations(disease, patient_data):
+    try:
+        # Prepare the prompt
+        prompt = f"""
+        The patient has tested positive for {disease.replace('-', ' ')}. 
+        Patient details: Age: {patient_data.get('age', 'unknown')}.
+        Provide exactly 5 concise, actionable recommendations for managing or treating this condition.
+        Each recommendation should be a single sentence.
+        Write in plain text, without markdown (no *, **, -, or numbered lists like 1.).
+        Do not include disclaimers or references to 'features' or 'healthcare providers.'
+        """
+        
+        # Initialize Gemini model (using 'gemini-1.5-flash' as an example; adjust as per your API access)
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        response = model.generate_content(prompt)
+        
+        # Parse response (assuming response.text contains a list or paragraph)
+        recommendations = response.text.split('\n')[:5]  # Limit to 5 recommendations
+        recommendations = [r.strip() for r in recommendations if r.strip()]  # Clean up
+        cleaned_recommendations = []
+        for rec in recommendations:
+            # Remove markdown list markers: *, -, or numbered lists like "1.", "2.", etc.
+            cleaned = re.sub(r'^\s*[\*\-]\s*|^[0-9]+\.\s*', '', rec).strip()
+            if cleaned:  # Only add non-empty recommendations
+                cleaned_recommendations.append(cleaned)
+        
+        recommendations=cleaned_recommendations[:5] 
+        if not recommendations:
+            raise ValueError("No valid recommendations received from Gemini API")
+        
+        logger.info(f"Gemini API provided recommendations for {disease}")
+        return recommendations
+    except Exception as e:
+        logger.error(f"Gemini API error for {disease}: {str(e)}")
+        
 
 @app.route('/favicon.ico')
 def favicon():
@@ -291,6 +338,11 @@ def predict(disease):
         logger.error(f"Prediction error for {disease} with {model_type}: {str(e)}")
         return render_template(f'{disease}.html', prediction=None, name=name, error="Error in prediction", records=None, no_records=False)
     
+    recommendations = None
+    if prediction == 1:
+        patient_data = {'age': age, 'features': features}
+        recommendations = get_gemini_recommendations(disease, patient_data)
+
     # Store or update patient data
     if name:
         patient = PatientData.query.filter_by(doctor_id=doctor.id, name=name, disease=disease, age=age).first()
@@ -317,7 +369,7 @@ def predict(disease):
         else:
             no_records = True
     
-    return render_template(f'{disease}.html', prediction=prediction, name=name, error=None, records=records, no_records=no_records)
+    return render_template(f'{disease}.html', prediction=prediction, name=name, error=None, records=records, no_records=no_records, recommendations=recommendations)
 
 if __name__ == '__main__':
     try:

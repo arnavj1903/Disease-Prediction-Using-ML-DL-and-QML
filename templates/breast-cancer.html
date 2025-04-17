@@ -126,6 +126,14 @@
             <p>Breast Cancer Diagnosis: {{ 'Malignant' if prediction == 1 else 'Benign' }}</p>
         </div>
     {% endif %}
+    {% if recommendations %}
+        <h2>Recommendations</h2>
+        <ul>
+            {% for rec in recommendations %}
+                <li>{{ rec }}</li>
+            {% endfor %}
+        </ul>
+    {% endif %}
     {% if no_records %}
         <div class="alert alert-warning mt-4">No records found for {{ name }}</div>
     {% elif records %}
