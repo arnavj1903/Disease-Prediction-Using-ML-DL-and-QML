@@ -23,7 +23,7 @@ from flask_sqlalchemy import SQLAlchemy
 load_dotenv()
 
 # Initialize Flask application
-app = Flask(_name_)
+app = Flask(__name__)
 app.config['SECRET_KEY'] = str(uuid4())  # Use a random UUID for security
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///medical.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
@@ -31,7 +31,7 @@ db = SQLAlchemy(app)
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
-logger = logging.getLogger(_name_)
+logger = logging.getLogger(__name__)
 
 
 class Doctor(db.Model):

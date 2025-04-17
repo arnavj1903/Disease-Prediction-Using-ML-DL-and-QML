@@ -1,6 +1,6 @@
 import unittest
 import numpy as np
-from src.models.heart_attack import HeartAttackPredictor
+#from src.models.heart_attack import HeartAttackPredictor
 
 class TestHeartAttackModel(unittest.TestCase):
     
