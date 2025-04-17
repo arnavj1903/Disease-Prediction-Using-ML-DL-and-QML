@@ -38,6 +38,6 @@ jobs:
       with:
         context: .
         push: true
-        tags: arnavj1903/disease-prediction-app1:latest
+        tags: arnavj1903/disease-prediction-app1
         username: ${{ secrets.DOCKER_USERNAME }}
         password: ${{ secrets.DOCKER_PASSWORD }}
