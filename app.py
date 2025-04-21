@@ -6,7 +6,7 @@
 Medical Disease Prediction Web Application.
 
 This Flask application provides a platform for medical professionals to predict disease
-outcomes using various machine learning models. It supports heart attack, breast cancer,
+outcomes using various machine learning models. It supports heart attacks, breast cancer,
 diabetes, and lung cancer predictions.
 """
 
