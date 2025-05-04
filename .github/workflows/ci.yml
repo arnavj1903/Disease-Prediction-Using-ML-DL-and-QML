@@ -26,7 +26,7 @@ jobs:
 
     - name: Lint with pylint
       run: |
-        pylint app.py tests/ || true
+        pylint app.py test_app.py || true
 
     - name: Test with unittest
       run: |
