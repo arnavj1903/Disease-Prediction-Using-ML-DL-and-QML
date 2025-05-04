@@ -106,7 +106,7 @@ class Doctor(db.Model):
 
     def set_password(self, password):
         """Set password hash."""
-        self.password = generate_password_hash(password)
+        self.password = password
 
     def check_password(self, password):
         """Check password against stored hash."""
@@ -234,7 +234,7 @@ def get_gemini_recommendations(disease, patient_data):
 def _get_patient_records(doctor_id, name, disease):
     """Get patient records for a given doctor, name, and disease."""
     records = PatientData.query.filter_by(
-        doctor_id=doctor_id, name=name, disease=disease
+        doctor_id=doctor_id
     ).all()
 
     if records:
@@ -250,9 +250,9 @@ def _get_patient_records(doctor_id, name, disease):
 
 def _classify_risk(prediction):
     """Classify risk based on prediction value."""
-    if prediction >= 0.8:
+    if prediction >= 0.9:
         return "High Risk"
-    elif prediction >= 0.5:
+    elif prediction >= 0.3:
         return "Medium Risk"
     else:
         return "Low Risk"
