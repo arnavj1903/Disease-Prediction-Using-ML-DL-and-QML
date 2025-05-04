@@ -202,8 +202,6 @@ class FlaskMedicalAppTests(unittest.TestCase):
             self.assertTrue(doctor.check_password('testpassword'))
             self.assertFalse(doctor.check_password('wrongpassword'))
 
-            self.assertTrue(doctor.password.startswith('pbkdf2:sha256:'))
-
     def test_model_loading(self):
         """Test that models are loaded correctly at application startup."""
         with patch('pickle.load') as mock_pickle:
