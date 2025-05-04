@@ -234,7 +234,7 @@ def get_gemini_recommendations(disease, patient_data):
 def _get_patient_records(doctor_id, name, disease):
     """Get patient records for a given doctor, name, and disease."""
     records = PatientData.query.filter_by(
-        doctor_id=doctor_id
+        doctor_id=doctor_id, name=name, disease=disease
     ).all()
 
     if records:
@@ -250,9 +250,9 @@ def _get_patient_records(doctor_id, name, disease):
 
 def _classify_risk(prediction):
     """Classify risk based on prediction value."""
-    if prediction >= 0.9:
+    if prediction >= 0.8:
         return "High Risk"
-    elif prediction >= 0.3:
+    elif prediction >= 0.5:
         return "Medium Risk"
     else:
         return "Low Risk"
