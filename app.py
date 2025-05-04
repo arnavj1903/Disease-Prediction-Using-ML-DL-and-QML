@@ -106,7 +106,7 @@ class Doctor(db.Model):
 
     def set_password(self, password):
         """Set password hash."""
-        self.password = password
+        self.password = generate_password_hash(password)
 
     def check_password(self, password):
         """Check password against stored hash."""
