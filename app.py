@@ -324,7 +324,7 @@ def logout():
 def disease_page(disease):
     """Disease prediction page route handler."""
     if 'username' not in session:
-        return redirect(url_for('login'))
+        return redirect(url_for('home'))
 
     if disease not in models:
         return redirect(url_for('authenticated_home'))
