@@ -2,7 +2,7 @@
 {% block title %}Heart Attack Prediction{% endblock %}
 {% block content %}
     <h1 class="text-center" style="color: #75e6da;">Heart Attack Prediction</h1><br>
-    <form id="searchForm" method="post" class="row g-3 mb-3">
+    <form id="searchForm" method="post" action="{{ url_for('search_patient', disease='heart-attack') }}" class="row g-3 mb-3">
         <div class="col-6">
             <div class="input-group">
                 <input type="text" name="name" id="patientName" class="form-control" placeholder="Patient Name" value="{{ name }}" required>
@@ -11,6 +11,9 @@
         </div>
     </form>
     <form id="predictionForm" method="post" action="{{ url_for('predict', disease='heart-attack') }}" class="row g-3">
+        <div class="col-6">
+            <input type="text" name="name" class="form-control" placeholder="Patient Name" value="{{ name }}" required>
+        </div>
         <div class="col-6">
             <select name="model" class="form-select" required>
                 <option value="">Select Model</option>
