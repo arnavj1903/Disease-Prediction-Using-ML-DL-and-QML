@@ -52,7 +52,8 @@ def load_model_files():
             'LR': pickle.load(open('heart_attack/LR_model', 'rb')),
             'SVM': pickle.load(open('heart_attack/SVM_model', 'rb')),
             'NB': pickle.load(open('heart_attack/NB_model', 'rb')),
-            'DL': pickle.load(open('heart_attack/DL_model', 'rb'))
+            'DL': pickle.load(open('heart_attack/DL_model', 'rb')),
+            'QNN' : pickle.load(open('heart_attack/qnn_model.pkl', 'rb'))
         },
         'breast-cancer': {
             'scaler': pickle.load(open('breast_cancer/breast_scaler', 'rb')),
@@ -72,7 +73,8 @@ def load_model_files():
             'LR': pickle.load(open('diabetes/LR_model', 'rb')),
             'SVM': pickle.load(open('diabetes/SVM_model', 'rb')),
             'NB': pickle.load(open('diabetes/NB_model', 'rb')),
-            'DL': pickle.load(open('diabetes/DL_model', 'rb'))
+            'DL': pickle.load(open('diabetes/DL_model', 'rb')),
+            'QNN' : pickle.load(open('diabetes/qnn_model.pkl', 'rb'))
         },
         'lung-cancer': {
             'scaler': pickle.load(open('lung_cancer/lung_scaler', 'rb')),
@@ -82,7 +84,8 @@ def load_model_files():
             'LR': pickle.load(open('lung_cancer/LR_model', 'rb')),
             'SVM': pickle.load(open('lung_cancer/SVM_model', 'rb')),
             'NB': pickle.load(open('lung_cancer/NB_model', 'rb')),
-            'DL': pickle.load(open('lung_cancer/DL_model', 'rb'))
+            'DL': pickle.load(open('lung_cancer/DL_model', 'rb')),
+            'QNN' : pickle.load(open('lung_cancer/qnn_model.pkl', 'rb'))
         }
     }
     logger.info("Models and scalers loaded successfully")
