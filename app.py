@@ -369,6 +369,11 @@ def search_patient(disease):
         return jsonify({'records': None, 'no_records': True})
 
     records, no_records = _get_patient_records(doctor_id, name, disease)
+    
+    print()
+    print(f"patient records of {name}", records)
+    print()
+
     return jsonify({
         'records': records,
         'no_records': no_records
@@ -393,6 +398,11 @@ def predict(disease):
     features = []
     age = None
     error_message = None
+
+    #checking input data
+    print()
+    print("input data", request.form)
+    print()
 
     for feature in FEATURE_LISTS[disease]:
         value = request.form.get(feature)
@@ -489,6 +499,10 @@ def predict(disease):
     # Store or update patient data
     feature_dict = {feature: value for feature, value in zip(FEATURE_LISTS[disease], features)}
 
+    print()
+    print("patient name", name)
+    print()
+
     if name:
         patient = PatientData.query.filter_by(
             doctor_id=doctor_id, name=name, disease=disease, age=age
@@ -498,6 +512,11 @@ def predict(disease):
             patient.features = feature_dict
             patient.result = float(prediction)
             patient.risk_label = risk_label
+
+            print()
+            print("updating patient data")
+            print()
+
         else:
             new_patient = PatientData(
                 doctor_id=doctor_id,
@@ -509,6 +528,10 @@ def predict(disease):
                 risk_label=risk_label
             )
             db.session.add(new_patient)
+
+            print()
+            print("adding new patient data")
+            print()
 
         db.session.commit()
 
