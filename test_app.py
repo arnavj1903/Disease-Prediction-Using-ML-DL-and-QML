@@ -337,11 +337,19 @@ class FlaskMedicalAppTests(unittest.TestCase):
                     response = client.post(f"/predict/{case['disease']}", data=data, follow_redirects=True)
                     self.assertEqual(response.status_code, 200)
 
-                    with app.app_context():
-                        record = PatientData.query.filter_by(name=patient['name'], disease=case['disease']).first()
-                        self.assertIsNotNone(record)
+                    # Match the age field for DB lookup
+                    age_field = 'age' if 'age' in patient['data'] else 'AGE'
+                    age_value = int(patient['data'][age_field])
 
-                        # Expected prediction
+                    with app.app_context():
+                        record = PatientData.query.filter_by(
+                            name=patient['name'],
+                            disease=case['disease'],
+                            age=age_value
+                        ).first()
+
+                        self.assertIsNotNone(record, f"Patient record not found for {patient['name']} ({case['disease']})")
+
                         expected_result = 1.0 if label == 'positive' else 0.0
                         expected_risk = "High Risk" if expected_result == 1.0 else "Low Risk"
 
@@ -349,6 +357,7 @@ class FlaskMedicalAppTests(unittest.TestCase):
                                         f"{label.title()} prediction mismatch for {case['disease']}")
                         self.assertEqual(record.risk_label, expected_risk,
                                         f"{label.title()} risk label mismatch for {case['disease']}")
+
 
 
 
