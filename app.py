@@ -465,15 +465,8 @@ def predict(disease):
             model_input = [scaled_features]
             prediction = models[disease][model_type].predict(model_input)[0]
 
-        # For binary classification models, ensure prediction is 0 or 1
-        if isinstance(prediction, (np.integer, np.floating)):
-            prediction = float(prediction)
-            if model_type != 'DL' and prediction not in [0, 1]:
-                # For models returning probabilities, threshold at 0.5
-                if hasattr(models[disease][model_type], "predict_proba"):
-                    probs = models[disease][model_type].predict_proba(model_input)[0]
-                    prediction = float(probs[1])  # Probability of positive class
-                    prediction = 1.0 if prediction >= 0.5 else 0.0
+        prediction = float(prediction)  # Convert to float for consistent type
+        prediction = 1.0 if prediction >= 0.5 else 0.0
 
         logger.info(f"Prediction for {name} with {model_type}: {prediction}")
     except Exception as e:
