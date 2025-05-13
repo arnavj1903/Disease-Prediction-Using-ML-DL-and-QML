@@ -229,134 +229,178 @@ class FlaskMedicalAppTests(unittest.TestCase):
                 self.assertIn('NB', models[disease])
                 self.assertIn('DL', models[disease])
 
-    def test_model_predictions(self):
-        """Test predictions for known positive and negative cases using specific models."""
-        with self.app as client:
-            with client.session_transaction() as sess:
-                sess['username'] = 'testdoctor'
-                sess['doctor_id'] = 1
+def test_model_predictions(self):
+    """Test predictions for known positive and negative cases using specific models."""
+    # First, ensure we have a doctor account and are logged in
+    with app.app_context():
+        # Make sure test doctor exists
+        doctor = Doctor.query.filter_by(username='testdoctor').first()
+        if not doctor:
+            test_doctor = Doctor(username='testdoctor')
+            test_doctor.set_password('testpassword')
+            db.session.add(test_doctor)
+            db.session.commit()
+            doctor_id = test_doctor.id
+        else:
+            doctor_id = doctor.id
 
-            test_cases = [
-                {
-                    "disease": "heart-attack",
-                    "model": "DT",
-                    "positive": {
-                        'name': 'HeartPos',
-                        'data': {'age': 20.0, 'sex': 1, 'cp': 0, 'trestbps': 90.0, 'chol': 200.0, 'fbs': 0,
-                                'restecg': 1, 'thalach': 140.0, 'exang': 0, 'oldpeak': 1.0,
-                                'slope': 2, 'ca': 1, 'thal': 2}
-                    },
-                    "negative": {
-                        'name': 'HeartNeg',
-                        'data': {'age': 20.0, 'sex': 1, 'cp': 0, 'trestbps': 120.0, 'chol': 200.0, 'fbs': 0,
-                                'restecg': 0, 'thalach': 140.0, 'exang': 0, 'oldpeak': 2.0,
-                                'slope': 0, 'ca': 3, 'thal': 0}
+    # Login as the test doctor
+    login_response = self.app.post('/login', data={
+        'username': 'testdoctor',
+        'password': 'testpassword',
+        'action': 'Login'
+    }, follow_redirects=True)
+    
+    self.assertEqual(login_response.status_code, 200)
+
+    # Now run the test cases with the authenticated session
+    with self.app as client:
+        # Verify we're logged in
+        with client.session_transaction() as sess:
+            sess['username'] = 'testdoctor'
+            sess['doctor_id'] = doctor_id
+
+        test_cases = [
+            {
+                "disease": "heart-attack",
+                "model": "DT",
+                "positive": {
+                    'name': 'HeartPos',
+                    'data': {'age': 20.0, 'sex': 1, 'cp': 0, 'trestbps': 90.0, 'chol': 200.0, 'fbs': 0,
+                            'restecg': 1, 'thalach': 140.0, 'exang': 0, 'oldpeak': 1.0,
+                            'slope': 2, 'ca': 1, 'thal': 2}
+                },
+                "negative": {
+                    'name': 'HeartNeg',
+                    'data': {'age': 20.0, 'sex': 1, 'cp': 0, 'trestbps': 120.0, 'chol': 200.0, 'fbs': 0,
+                            'restecg': 0, 'thalach': 140.0, 'exang': 0, 'oldpeak': 2.0,
+                            'slope': 0, 'ca': 3, 'thal': 0}
+                }
+            },
+            {
+                "disease": "breast-cancer",
+                "model": "DT",
+                "positive": {
+                    'name': 'BCPos',
+                    'data': {
+                        'radius_mean': 18.0, 'texture_mean': 10.4, 'perimeter_mean': 122.8, 'area_mean': 1001.0,
+                        'smoothness_mean': 0.12, 'compactness_mean': 0.3, 'concavity_mean': 0.3,
+                        'concave_points_mean': 0.15, 'symmetry_mean': 0.24, 'fractal_dimension_mean': 0.08,
+                        'radius_se': 1.1, 'texture_se': 0.88, 'perimeter_se': 8.59, 'area_se': 153.4,
+                        'smoothness_se': 0.006, 'compactness_se': 0.05, 'concavity_se': 0.05,
+                        'concave_points_se': 0.0198, 'symmetry_se': 0.03, 'fractal_dimension_se': 0.0053,
+                        'radius_worst': 25.4, 'texture_worst': 17.32, 'perimeter_worst': 184.0, 'area_worst': 2019.0,
+                        'smoothness_worst': 0.16, 'compactness_worst': 0.67, 'concavity_worst': 0.72,
+                        'concave_points_worst': 0.2699, 'symmetry_worst': 0.46, 'fractal_dimension_worst': 0.12
                     }
                 },
-                {
-                    "disease": "breast-cancer",
-                    "model": "DT",
-                    "positive": {
-                        'name': 'BCPos',
-                        'data': {
-                            'radius_mean': 18.0, 'texture_mean': 10.4, 'perimeter_mean': 122.8, 'area_mean': 1001.0,
-                            'smoothness_mean': 0.12, 'compactness_mean': 0.3, 'concavity_mean': 0.3,
-                            'concave_points_mean': 0.15, 'symmetry_mean': 0.24, 'fractal_dimension_mean': 0.08,
-                            'radius_se': 1.1, 'texture_se': 0.88, 'perimeter_se': 8.59, 'area_se': 153.4,
-                            'smoothness_se': 0.006, 'compactness_se': 0.05, 'concavity_se': 0.05,
-                            'concave_points_se': 0.0198, 'symmetry_se': 0.03, 'fractal_dimension_se': 0.0053,
-                            'radius_worst': 25.4, 'texture_worst': 17.32, 'perimeter_worst': 184.0, 'area_worst': 2019.0,
-                            'smoothness_worst': 0.16, 'compactness_worst': 0.67, 'concavity_worst': 0.72,
-                            'concave_points_worst': 0.2699, 'symmetry_worst': 0.46, 'fractal_dimension_worst': 0.12
-                        }
-                    },
-                    "negative": {
-                        'name': 'BCNeg',
-                        'data': {
-                            'radius_mean': 8.0, 'texture_mean': 10.0, 'perimeter_mean': 60.0, 'area_mean': 300.0,
-                            'smoothness_mean': 0.05, 'compactness_mean': 0.02, 'concavity_mean': 0.02,
-                            'concave_points_mean': 0.01, 'symmetry_mean': 0.1, 'fractal_dimension_mean': 0.05,
-                            'radius_se': 0.2, 'texture_se': 0.3, 'perimeter_se': 1.0, 'area_se': 10.0,
-                            'smoothness_se': 0.002, 'compactness_se': 0.01, 'concavity_se': 0.01,
-                            'concave_points_se': 0.001, 'symmetry_se': 0.01, 'fractal_dimension_se': 0.002,
-                            'radius_worst': 9.0, 'texture_worst': 12.0, 'perimeter_worst': 70.0, 'area_worst': 400.0,
-                            'smoothness_worst': 0.06, 'compactness_worst': 0.03, 'concavity_worst': 0.02,
-                            'concave_points_worst': 0.02, 'symmetry_worst': 0.15, 'fractal_dimension_worst': 0.06
-                        }
-                    }
-                },
-                {
-                    "disease": "diabetes",
-                    "positive": {
-                        'name': 'DiabetesPos',
-                        'model': 'DT',
-                        'data': {
-                            'Pregnancies': 0.0, 'Glucose': 150.0, 'BloodPressure': 130.0, 'SkinThickness': 35.0,
-                            'Insulin': 0.0, 'BMI': 22.0, 'DiabetesPedigreeFunction': 0.8, 'Age': 20.0
-                        }
-                    },
-                    "negative": {
-                        'name': 'DiabetesNeg',
-                        'model': 'LR',
-                        'data': {
-                            'Pregnancies': 0.0, 'Glucose': 200.0, 'BloodPressure': 80.0, 'SkinThickness': 5.0,
-                            'Insulin': 5.0, 'BMI': 22.0, 'DiabetesPedigreeFunction': 0.5, 'Age': 20.0
-                        }
-                    }
-                },
-                {
-                    "disease": "lung-cancer",
-                    "positive": {
-                        'name': 'LungPos',
-                        'model': 'KNN',
-                        'data': {
-                            'GENDER': 1, 'AGE': 67.0, 'SMOKING': 1, 'YELLOW_FINGERS': 1, 'ANXIETY': 0,
-                            'PEER_PRESSURE': 0, 'CHRONIC_DISEASE': 1, 'FATIGUE': 1, 'ALLERGY': 1,
-                            'WHEEZING': 1, 'ALCOHOL_CONSUMING': 1, 'COUGHING': 1,
-                            'SHORTNESS_OF_BREATH': 1, 'SWALLOWING_DIFFICULTY': 1, 'CHEST_PAIN': 1
-                        }
-                    },
-                    "negative": {
-                        'name': 'LungNeg',
-                        'model': 'DT',
-                        'data': {
-                            'GENDER': 1, 'AGE': 20.0, 'SMOKING': 1, 'YELLOW_FINGERS': 1, 'ANXIETY': 1,
-                            'PEER_PRESSURE': 0, 'CHRONIC_DISEASE': 0, 'FATIGUE': 1, 'ALLERGY': 0,
-                            'WHEEZING': 1, 'ALCOHOL_CONSUMING': 1, 'COUGHING': 1,
-                            'SHORTNESS_OF_BREATH': 1, 'SWALLOWING_DIFFICULTY': 0, 'CHEST_PAIN': 0
-                        }
+                "negative": {
+                    'name': 'BCNeg',
+                    'data': {
+                        'radius_mean': 8.0, 'texture_mean': 10.0, 'perimeter_mean': 60.0, 'area_mean': 300.0,
+                        'smoothness_mean': 0.05, 'compactness_mean': 0.02, 'concavity_mean': 0.02,
+                        'concave_points_mean': 0.01, 'symmetry_mean': 0.1, 'fractal_dimension_mean': 0.05,
+                        'radius_se': 0.2, 'texture_se': 0.3, 'perimeter_se': 1.0, 'area_se': 10.0,
+                        'smoothness_se': 0.002, 'compactness_se': 0.01, 'concavity_se': 0.01,
+                        'concave_points_se': 0.001, 'symmetry_se': 0.01, 'fractal_dimension_se': 0.002,
+                        'radius_worst': 9.0, 'texture_worst': 12.0, 'perimeter_worst': 70.0, 'area_worst': 400.0,
+                        'smoothness_worst': 0.06, 'compactness_worst': 0.03, 'concavity_worst': 0.02,
+                        'concave_points_worst': 0.02, 'symmetry_worst': 0.15, 'fractal_dimension_worst': 0.06
                     }
                 }
-            ]
+            },
+            {
+                "disease": "diabetes",
+                "positive": {
+                    'name': 'DiabetesPos',
+                    'model': 'DT',
+                    'data': {
+                        'Pregnancies': 0.0, 'Glucose': 150.0, 'BloodPressure': 130.0, 'SkinThickness': 35.0,
+                        'Insulin': 0.0, 'BMI': 22.0, 'DiabetesPedigreeFunction': 0.8, 'Age': 20.0
+                    }
+                },
+                "negative": {
+                    'name': 'DiabetesNeg',
+                    'model': 'LR',
+                    'data': {
+                        'Pregnancies': 0.0, 'Glucose': 200.0, 'BloodPressure': 80.0, 'SkinThickness': 5.0,
+                        'Insulin': 5.0, 'BMI': 22.0, 'DiabetesPedigreeFunction': 0.5, 'Age': 20.0
+                    }
+                }
+            },
+            {
+                "disease": "lung-cancer",
+                "positive": {
+                    'name': 'LungPos',
+                    'model': 'KNN',
+                    'data': {
+                        'GENDER': 1, 'AGE': 67.0, 'SMOKING': 1, 'YELLOW_FINGERS': 1, 'ANXIETY': 0,
+                        'PEER_PRESSURE': 0, 'CHRONIC_DISEASE': 1, 'FATIGUE': 1, 'ALLERGY': 1,
+                        'WHEEZING': 1, 'ALCOHOL_CONSUMING': 1, 'COUGHING': 1,
+                        'SHORTNESS_OF_BREATH': 1, 'SWALLOWING_DIFFICULTY': 1, 'CHEST_PAIN': 1
+                    }
+                },
+                "negative": {
+                    'name': 'LungNeg',
+                    'model': 'DT',
+                    'data': {
+                        'GENDER': 1, 'AGE': 20.0, 'SMOKING': 1, 'YELLOW_FINGERS': 1, 'ANXIETY': 1,
+                        'PEER_PRESSURE': 0, 'CHRONIC_DISEASE': 0, 'FATIGUE': 1, 'ALLERGY': 0,
+                        'WHEEZING': 1, 'ALCOHOL_CONSUMING': 1, 'COUGHING': 1,
+                        'SHORTNESS_OF_BREATH': 1, 'SWALLOWING_DIFFICULTY': 0, 'CHEST_PAIN': 0
+                    }
+                }
+            }
+        ]
 
-            for case in test_cases:
-                for label in ['positive', 'negative']:
-                    patient = case[label]
-                    model = patient.get('model', case.get('model', 'DT'))
-                    data = {**patient['data'], 'model': model, 'name': patient['name']}
-                    response = client.post(f"/predict/{case['disease']}", data=data, follow_redirects=True)
-                    self.assertEqual(response.status_code, 200)
+        for case in test_cases:
+            for label in ['positive', 'negative']:
+                patient = case[label]
+                model = patient.get('model', case.get('model', 'DT'))
+                
+                # Convert data to form format - everything needs to be strings
+                form_data = {}
+                for key, value in patient['data'].items():
+                    form_data[key] = str(value)
+                
+                # Add model and name to the form data
+                form_data['model'] = model
+                form_data['name'] = patient['name']
+                
+                print(f"\nSubmitting prediction for {patient['name']} ({case['disease']})")
+                response = client.post(f"/predict/{case['disease']}", data=form_data, follow_redirects=True)
+                self.assertEqual(response.status_code, 200)
+                
+                # Force the session to save changes before checking the database
+                db.session.commit()
 
-                    # Match the age field for DB lookup
-                    age_field = 'age' if 'age' in patient['data'] else 'AGE'
-                    age_value = int(patient['data'][age_field])
+                # Match the age field for DB lookup
+                age_field = 'age' if 'age' in patient['data'] else 'AGE'
+                age_value = int(float(patient['data'][age_field]))
 
-                    with app.app_context():
-                        record = PatientData.query.filter_by(
-                            name=patient['name'],
-                            disease=case['disease'],
-                            age=age_value
-                        ).first()
+                with app.app_context():
+                    record = PatientData.query.filter_by(
+                        doctor_id=doctor_id,
+                        name=patient['name'],
+                        disease=case['disease'],
+                        age=age_value
+                    ).first()
 
-                        self.assertIsNotNone(record, f"Patient record not found for {patient['name']} ({case['disease']})")
+                    print(f"Checking database for {patient['name']} ({case['disease']}) with age {age_value}")
+                    if record:
+                        print(f"Found record: {record.id}, result: {record.result}")
+                    else:
+                        print(f"No record found for {patient['name']}")
 
-                        expected_result = 1.0 if label == 'positive' else 0.0
-                        expected_risk = "High Risk" if expected_result == 1.0 else "Low Risk"
+                    self.assertIsNotNone(record, f"Patient record not found for {patient['name']} ({case['disease']})")
 
-                        self.assertEqual(record.result, expected_result,
-                                        f"{label.title()} prediction mismatch for {case['disease']}")
-                        self.assertEqual(record.risk_label, expected_risk,
-                                        f"{label.title()} risk label mismatch for {case['disease']}")
+                    expected_result = 1.0 if label == 'positive' else 0.0
+                    expected_risk = "High Risk" if expected_result == 1.0 else "Low Risk"
+
+                    self.assertEqual(record.result, expected_result,
+                                    f"{label.title()} prediction mismatch for {case['disease']}")
+                    self.assertEqual(record.risk_label, expected_risk,
+                                    f"{label.title()} risk label mismatch for {case['disease']}")
 
 
 

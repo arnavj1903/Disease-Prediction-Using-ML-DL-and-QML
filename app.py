@@ -427,7 +427,7 @@ def predict(disease):
 
         features.append(value)
         if feature.lower() in ['age', 'AGE']:
-            age = int(value)
+            age = int(float(value))  # Convert to float first, then to int
 
     # If there was an error in feature extraction
     if error_message:
@@ -495,32 +495,52 @@ def predict(disease):
     # Store or update patient data
     feature_dict = {feature: value for feature, value in zip(FEATURE_LISTS[disease], features)}
 
+    print()
+    print(f"Saving patient data for {name}, disease: {disease}, doctor_id: {doctor_id}, age: {age}")
+    print()
 
     if name:
-        # Test if patient exists
-        patient = PatientData.query.filter_by(
-            doctor_id=doctor_id, name=name, disease=disease, age=age
-        ).first()
+        try:
+            # Check if patient exists
+            patient = PatientData.query.filter_by(
+                doctor_id=doctor_id, name=name, disease=disease, age=age
+            ).first()
 
-        if patient:
-            patient.features = feature_dict
-            patient.result = float(prediction)
-            patient.risk_label = risk_label
-            db.session.commit()  # Make sure we commit changes
-            print("Updated existing patient record")
-        else:
-            new_patient = PatientData(
-                doctor_id=doctor_id,
-                name=name,
-                disease=disease,
-                age=age,
-                features=feature_dict,
-                result=float(prediction),
-                risk_label=risk_label
-            )
-            db.session.add(new_patient)
-            db.session.commit()  # Make sure we commit changes
-            print("Added new patient record")
+            if patient:
+                print(f"Updating existing patient record: {patient.id}")
+                patient.features = feature_dict
+                patient.result = float(prediction)
+                patient.risk_label = risk_label
+            else:
+                print(f"Creating new patient record for {name}")
+                patient = PatientData(
+                    doctor_id=doctor_id,
+                    name=name,
+                    disease=disease,
+                    age=age,
+                    features=feature_dict,
+                    result=float(prediction),
+                    risk_label=risk_label
+                )
+                db.session.add(patient)
+            
+            db.session.commit()
+            print(f"Database commit successful for {name}")
+            
+            # Verify the record was saved
+            verification = PatientData.query.filter_by(
+                doctor_id=doctor_id, name=name, disease=disease, age=age
+            ).first()
+            
+            if verification:
+                print(f"Verified record exists with ID: {verification.id}")
+            else:
+                print("WARNING: Failed to verify record exists after save!")
+                
+        except Exception as e:
+            print(f"Error saving patient data: {str(e)}")
+            db.session.rollback()
+            logger.error(f"Database error: {str(e)}")
 
     # Fetch records for display
     records, no_records = _get_patient_records(doctor_id, name, disease) if name else (None, False)
