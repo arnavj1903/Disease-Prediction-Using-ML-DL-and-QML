@@ -303,9 +303,9 @@ class FlaskMedicalAppTests(unittest.TestCase):
             test_cases = [
                 {
                     "disease": "heart-attack",
-                    "model": "DT",
                     "positive": {
                         'name': 'HeartPos',
+                        'model': 'DT',  # Explicitly specify the positive model
                         'data': {'age': '20.0', 'sex': 'male', 'cp': 'typical_angina', 'trestbps': '90.0', 
                                 'chol': '200.0', 'fbs': 'false', 'restecg': 'st_t_abnormality', 
                                 'thalach': '140.0', 'exang': 'no', 'oldpeak': '1.0',
@@ -313,6 +313,7 @@ class FlaskMedicalAppTests(unittest.TestCase):
                     },
                     "negative": {
                         'name': 'HeartNeg',
+                        'model': 'LR',  # Explicitly specify the negative model
                         'data': {'age': '20.0', 'sex': 'male', 'cp': 'typical_angina', 'trestbps': '120.0', 
                                 'chol': '200.0', 'fbs': 'false', 'restecg': 'normal', 
                                 'thalach': '140.0', 'exang': 'no', 'oldpeak': '2.0',
@@ -321,9 +322,9 @@ class FlaskMedicalAppTests(unittest.TestCase):
                 },
                 {
                     "disease": "diabetes",
-                    "model": "DT",
                     "positive": {
                         'name': 'DiabetesPos',
+                        'model': 'DT',  # Explicitly specify the positive model
                         'data': {
                             'Pregnancies': '0', 'Glucose': '150.0', 'BloodPressure': '130.0', 'SkinThickness': '35.0',
                             'Insulin': '0.0', 'BMI': '22.0', 'DiabetesPedigreeFunction': '0.8', 'Age': '20.0'
@@ -331,7 +332,7 @@ class FlaskMedicalAppTests(unittest.TestCase):
                     },
                     "negative": {
                         'name': 'DiabetesNeg',
-                        'model': 'LR',
+                        'model': 'LR',  # Explicitly specify the negative model
                         'data': {
                             'Pregnancies': '0', 'Glucose': '100.0', 'BloodPressure': '80.0', 'SkinThickness': '5.0',
                             'Insulin': '5.0', 'BMI': '22.0', 'DiabetesPedigreeFunction': '0.5', 'Age': '20.0'
@@ -373,7 +374,7 @@ class FlaskMedicalAppTests(unittest.TestCase):
                     for case in test_cases:
                         # Test positive case first
                         patient = case["positive"]
-                        model = patient.get('model', case.get('model', 'DT'))
+                        model = patient.get('model')  # Get the specified model for positive case
                         
                         # Add model and name to the form data
                         form_data = dict(patient['data'])
@@ -392,7 +393,7 @@ class FlaskMedicalAppTests(unittest.TestCase):
                             
                         # Test negative case
                         patient = case["negative"]
-                        model = patient.get('model', case.get('model', 'LR'))
+                        model = patient.get('model')  # Get the specified model for negative case
                         
                         # Add model and name to the form data
                         form_data = dict(patient['data'])
