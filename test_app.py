@@ -268,16 +268,14 @@ class FlaskMedicalAppTests(unittest.TestCase):
                 doctor_id = doctor.id
 
         # Login as the test doctor
-        login_response = self.app.post('/login', data={
-            'username': 'testdoctor',
-            'password': 'testpassword',
-            'action': 'Login'
-        }, follow_redirects=True)
-        
-        self.assertEqual(login_response.status_code, 200)
-
-        # Now run the test cases with the authenticated session
         with self.app as client:
+            login_response = client.post('/', data={
+                'username': 'testdoctor',
+                'password': 'testpassword',
+                'action': 'Login'
+            }, follow_redirects=True)
+            self.assertEqual(login_response.status_code, 200)
+
             # Verify we're logged in
             with client.session_transaction() as sess:
                 sess['username'] = 'testdoctor'
