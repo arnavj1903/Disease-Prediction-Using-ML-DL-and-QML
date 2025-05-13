@@ -268,7 +268,7 @@ class FlaskMedicalAppTests(unittest.TestCase):
                 doctor_id = doctor.id
 
         # Login as the test doctor
-        login_response = self.app.post('/', data={
+        login_response = self.app.post('/login', data={
             'username': 'testdoctor',
             'password': 'testpassword',
             'action': 'Login'
@@ -283,132 +283,148 @@ class FlaskMedicalAppTests(unittest.TestCase):
                 sess['username'] = 'testdoctor'
                 sess['doctor_id'] = doctor_id
 
-            # Mock the necessary components
-            mock_scaler = MagicMock()
-            mock_scaler.transform = lambda x: x  # Just return the input
-
-            mock_positive_model = MagicMock()
-            mock_positive_model.predict = lambda x: [0.85]  # Always predict positive (> 0.5)
-
-            mock_negative_model = MagicMock()
-            mock_negative_model.predict = lambda x: [0.2]   # Always predict negative (< 0.5)
-
-            # Setup Gemini API mock
-            gemini_mock = MagicMock()
-            gemini_response = MagicMock()
-            gemini_response.text = "Recommendation 1\nRecommendation 2\nRecommendation 3\nRecommendation 4\nRecommendation 5"
-            gemini_mock.return_value.generate_content.return_value = gemini_response
-
-            # Create test case structure
             test_cases = [
                 {
                     "disease": "heart-attack",
+                    "model": "DT",
                     "positive": {
                         'name': 'HeartPos',
-                        'model': 'DT',  # Explicitly specify the positive model
-                        'data': {'age': '20.0', 'sex': 'male', 'cp': 'typical_angina', 'trestbps': '90.0', 
-                                'chol': '200.0', 'fbs': 'false', 'restecg': 'st_t_abnormality', 
-                                'thalach': '140.0', 'exang': 'no', 'oldpeak': '1.0',
-                                'slope': 'upsloping', 'ca': '1', 'thal': 'fixed_defect'}
+                        'data': {'age': 20.0, 'sex': 1, 'cp': 0, 'trestbps': 90.0, 'chol': 200.0, 'fbs': 0,
+                                'restecg': 1, 'thalach': 140.0, 'exang': 0, 'oldpeak': 1.0,
+                                'slope': 2, 'ca': 1, 'thal': 2}
                     },
                     "negative": {
                         'name': 'HeartNeg',
-                        'model': 'LR',  # Explicitly specify the negative model
-                        'data': {'age': '20.0', 'sex': 'male', 'cp': 'typical_angina', 'trestbps': '120.0', 
-                                'chol': '200.0', 'fbs': 'false', 'restecg': 'normal', 
-                                'thalach': '140.0', 'exang': 'no', 'oldpeak': '2.0',
-                                'slope': 'upsloping', 'ca': '3', 'thal': 'normal'}
+                        'data': {'age': 20.0, 'sex': 1, 'cp': 0, 'trestbps': 120.0, 'chol': 200.0, 'fbs': 0,
+                                'restecg': 0, 'thalach': 140.0, 'exang': 0, 'oldpeak': 2.0,
+                                'slope': 0, 'ca': 3, 'thal': 0}
+                    }
+                },
+                {
+                    "disease": "breast-cancer",
+                    "model": "DT",
+                    "positive": {
+                        'name': 'BCPos',
+                        'data': {
+                            'radius_mean': 18.0, 'texture_mean': 10.4, 'perimeter_mean': 122.8, 'area_mean': 1001.0,
+                            'smoothness_mean': 0.12, 'compactness_mean': 0.3, 'concavity_mean': 0.3,
+                            'concave_points_mean': 0.15, 'symmetry_mean': 0.24, 'fractal_dimension_mean': 0.08,
+                            'radius_se': 1.1, 'texture_se': 0.88, 'perimeter_se': 8.59, 'area_se': 153.4,
+                            'smoothness_se': 0.006, 'compactness_se': 0.05, 'concavity_se': 0.05,
+                            'concave_points_se': 0.0198, 'symmetry_se': 0.03, 'fractal_dimension_se': 0.0053,
+                            'radius_worst': 25.4, 'texture_worst': 17.32, 'perimeter_worst': 184.0, 'area_worst': 2019.0,
+                            'smoothness_worst': 0.16, 'compactness_worst': 0.67, 'concavity_worst': 0.72,
+                            'concave_points_worst': 0.2699, 'symmetry_worst': 0.46, 'fractal_dimension_worst': 0.12
+                        }
+                    },
+                    "negative": {
+                        'name': 'BCNeg',
+                        'data': {
+                            'radius_mean': 8.0, 'texture_mean': 10.0, 'perimeter_mean': 60.0, 'area_mean': 300.0,
+                            'smoothness_mean': 0.05, 'compactness_mean': 0.02, 'concavity_mean': 0.02,
+                            'concave_points_mean': 0.01, 'symmetry_mean': 0.1, 'fractal_dimension_mean': 0.05,
+                            'radius_se': 0.2, 'texture_se': 0.3, 'perimeter_se': 1.0, 'area_se': 10.0,
+                            'smoothness_se': 0.002, 'compactness_se': 0.01, 'concavity_se': 0.01,
+                            'concave_points_se': 0.001, 'symmetry_se': 0.01, 'fractal_dimension_se': 0.002,
+                            'radius_worst': 9.0, 'texture_worst': 12.0, 'perimeter_worst': 70.0, 'area_worst': 400.0,
+                            'smoothness_worst': 0.06, 'compactness_worst': 0.03, 'concavity_worst': 0.02,
+                            'concave_points_worst': 0.02, 'symmetry_worst': 0.15, 'fractal_dimension_worst': 0.06
+                        }
                     }
                 },
                 {
                     "disease": "diabetes",
                     "positive": {
                         'name': 'DiabetesPos',
-                        'model': 'DT',  # Explicitly specify the positive model
+                        'model': 'DT',
                         'data': {
-                            'Pregnancies': '0', 'Glucose': '150.0', 'BloodPressure': '130.0', 'SkinThickness': '35.0',
-                            'Insulin': '0.0', 'BMI': '22.0', 'DiabetesPedigreeFunction': '0.8', 'Age': '20.0'
+                            'Pregnancies': 0.0, 'Glucose': 150.0, 'BloodPressure': 130.0, 'SkinThickness': 35.0,
+                            'Insulin': 0.0, 'BMI': 22.0, 'DiabetesPedigreeFunction': 0.8, 'Age': 20.0
                         }
                     },
                     "negative": {
                         'name': 'DiabetesNeg',
-                        'model': 'LR',  # Explicitly specify the negative model
+                        'model': 'LR',
                         'data': {
-                            'Pregnancies': '0', 'Glucose': '100.0', 'BloodPressure': '80.0', 'SkinThickness': '5.0',
-                            'Insulin': '5.0', 'BMI': '22.0', 'DiabetesPedigreeFunction': '0.5', 'Age': '20.0'
+                            'Pregnancies': 0.0, 'Glucose': 200.0, 'BloodPressure': 80.0, 'SkinThickness': 5.0,
+                            'Insulin': 5.0, 'BMI': 22.0, 'DiabetesPedigreeFunction': 0.5, 'Age': 20.0
+                        }
+                    }
+                },
+                {
+                    "disease": "lung-cancer",
+                    "positive": {
+                        'name': 'LungPos',
+                        'model': 'KNN',
+                        'data': {
+                            'GENDER': 1, 'AGE': 67.0, 'SMOKING': 1, 'YELLOW_FINGERS': 1, 'ANXIETY': 0,
+                            'PEER_PRESSURE': 0, 'CHRONIC_DISEASE': 1, 'FATIGUE': 1, 'ALLERGY': 1,
+                            'WHEEZING': 1, 'ALCOHOL_CONSUMING': 1, 'COUGHING': 1,
+                            'SHORTNESS_OF_BREATH': 1, 'SWALLOWING_DIFFICULTY': 1, 'CHEST_PAIN': 1
+                        }
+                    },
+                    "negative": {
+                        'name': 'LungNeg',
+                        'model': 'DT',
+                        'data': {
+                            'GENDER': 1, 'AGE': 20.0, 'SMOKING': 1, 'YELLOW_FINGERS': 1, 'ANXIETY': 1,
+                            'PEER_PRESSURE': 0, 'CHRONIC_DISEASE': 0, 'FATIGUE': 1, 'ALLERGY': 0,
+                            'WHEEZING': 1, 'ALCOHOL_CONSUMING': 1, 'COUGHING': 1,
+                            'SHORTNESS_OF_BREATH': 1, 'SWALLOWING_DIFFICULTY': 0, 'CHEST_PAIN': 0
                         }
                     }
                 }
             ]
 
-            # Setup the models dictionary patch to return our mock models
-            models_dict = {
-                'heart-attack': {
-                    'scaler': mock_scaler,
-                    'RF': mock_positive_model,
-                    'DT': mock_positive_model,
-                    'LR': mock_negative_model,
-                    'KNN': mock_positive_model,
-                    'SVM': mock_negative_model,
-                    'NB': mock_positive_model,
-                    'DL': mock_negative_model,
-                    'QNN': mock_positive_model
-                },
-                'diabetes': {
-                    'scaler': mock_scaler,
-                    'RF': mock_positive_model,
-                    'DT': mock_positive_model,
-                    'LR': mock_negative_model,
-                    'KNN': mock_positive_model,
-                    'SVM': mock_negative_model,
-                    'NB': mock_positive_model,
-                    'DL': mock_negative_model,
-                    'QNN': mock_positive_model
-                }
-            }
+            for case in test_cases:
+                for label in ['positive', 'negative']:
+                    patient = case[label]
+                    model = patient.get('model', case.get('model', 'DT'))
+                    
+                    # Convert data to form format - everything needs to be strings
+                    form_data = {}
+                    for key, value in patient['data'].items():
+                        form_data[key] = str(value)
+                    
+                    # Add model and name to the form data
+                    form_data['model'] = model
+                    form_data['name'] = patient['name']
+                    
+                    print(f"\nSubmitting prediction for {patient['name']} ({case['disease']})")
+                    response = client.post(f"/predict/{case['disease']}", data=form_data, follow_redirects=True)
+                    self.assertEqual(response.status_code, 200)
+                    
+                    # Force the session to save changes before checking the database
+                    db.session.commit()
 
-            with patch('app.models', models_dict):
-                with patch('app.get_gemini_recommendations') as mock_gemini:
-                    mock_gemini.return_value = ["Recommendation 1", "Recommendation 2", "Recommendation 3", "Recommendation 4", "Recommendation 5"]
-                
-                    for case in test_cases:
-                        # Test positive case first
-                        patient = case["positive"]
-                        model = patient.get('model')  # Get the specified model for positive case
-                        
-                        # Add model and name to the form data
-                        form_data = dict(patient['data'])
-                        form_data['model'] = model
-                        form_data['name'] = patient['name']
-                        
-                        # Use patch to override _get_patient_records to return empty results
-                        with patch('app._get_patient_records', return_value=(None, True)):
-                            response = client.post(f"/predict/{case['disease']}", 
-                                                data=form_data, 
-                                                follow_redirects=True)
-                            self.assertEqual(response.status_code, 200)
-                            
-                            # Check response data for high risk status
-                            self.assertIn(b'High Risk', response.data)
-                            
-                        # Test negative case
-                        patient = case["negative"]
-                        model = patient.get('model')  # Get the specified model for negative case
-                        
-                        # Add model and name to the form data
-                        form_data = dict(patient['data'])
-                        form_data['model'] = model
-                        form_data['name'] = patient['name']
-                        
-                        # Use patch to override _get_patient_records to return empty results
-                        with patch('app._get_patient_records', return_value=(None, True)):
-                            response = client.post(f"/predict/{case['disease']}", 
-                                                data=form_data, 
-                                                follow_redirects=True)
-                            self.assertEqual(response.status_code, 200)
-                            
-                            # Check response data for low risk status
-                            self.assertIn(b'Low Risk', response.data)
+                    # Match the age field for DB lookup
+                    age_field = 'age' if 'age' in patient['data'] else 'AGE'
+                    age_value = int(float(patient['data'][age_field]))
+
+                    with app.app_context():
+                        record = PatientData.query.filter_by(
+                            doctor_id=doctor_id,
+                            name=patient['name'],
+                            disease=case['disease'],
+                            age=age_value
+                        ).first()
+
+                        print(f"Checking database for {patient['name']} ({case['disease']}) with age {age_value}")
+                        if record:
+                            print(f"Found record: {record.id}, result: {record.result}")
+                        else:
+                            print(f"No record found for {patient['name']}")
+
+                        self.assertIsNotNone(record, f"Patient record not found for {patient['name']} ({case['disease']})")
+
+                        expected_result = 1.0 if label == 'positive' else 0.0
+                        expected_risk = "High Risk" if expected_result == 1.0 else "Low Risk"
+
+                        self.assertEqual(record.result, expected_result,
+                                        f"{label.title()} prediction mismatch for {case['disease']}")
+                        self.assertEqual(record.risk_label, expected_risk,
+                                        f"{label.title()} risk label mismatch for {case['disease']}")
+
 
     def test_risk_classification(self):
         """Test the risk classification function."""
