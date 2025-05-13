@@ -65,15 +65,10 @@ class FlaskMedicalAppTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn(b'MediScope AI', response.data)
 
-    def test_login_page(self):
-        """Test that login page loads correctly."""
-        response = self.app.get('/login')
-        self.assertEqual(response.status_code, 200)
-        self.assertIn(b'Login', response.data)
 
     def test_successful_login(self):
         """Test successful login with valid credentials."""
-        response = self.app.post('/login', data={
+        response = self.app.post('/', data={
             'username': 'testdoctor',
             'password': 'testpassword',
             'action': 'Login'
@@ -83,7 +78,7 @@ class FlaskMedicalAppTests(unittest.TestCase):
 
     def test_failed_login(self):
         """Test failed login with invalid credentials."""
-        response = self.app.post('/login', data={
+        response = self.app.post('/', data={
             'username': 'testdoctor',
             'password': 'wrongpassword',
             'action': 'Login'
@@ -93,7 +88,7 @@ class FlaskMedicalAppTests(unittest.TestCase):
 
     def test_create_account(self):
         """Test creating a new account."""
-        response = self.app.post('/login', data={
+        response = self.app.post('/', data={
             'username': 'newdoctor',
             'password': 'newpassword',
             'action': 'Create Account'
@@ -108,7 +103,7 @@ class FlaskMedicalAppTests(unittest.TestCase):
 
     def test_create_duplicate_account(self):
         """Test attempting to create an account with an existing username."""
-        response = self.app.post('/login', data={
+        response = self.app.post('/', data={
             'username': 'testdoctor',
             'password': 'somepassword',
             'action': 'Create Account'
@@ -245,7 +240,7 @@ def test_model_predictions(self):
             doctor_id = doctor.id
 
     # Login as the test doctor
-    login_response = self.app.post('/login', data={
+    login_response = self.app.post('/', data={
         'username': 'testdoctor',
         'password': 'testpassword',
         'action': 'Login'
