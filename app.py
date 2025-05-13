@@ -267,17 +267,9 @@ def favicon():
     return '', 204
 
 
-@app.route('/')
+@app.route('/', methods=['GET', 'POST'])
 def home():
-    """Home page route handler."""
-    if 'username' in session:
-        return redirect(url_for('authenticated_home'))
-    return render_template('home.html')
-
-
-@app.route('/login', methods=['GET', 'POST'])
-def login():
-    """Login page route handler."""
+    """Home page route handler with login functionality."""
     if 'username' in session:
         return redirect(url_for('authenticated_home'))
 
@@ -311,16 +303,14 @@ def login():
                 logger.info(f"New doctor account created: {username}")
                 return redirect(url_for('authenticated_home'))
 
-    return render_template('login.html', error=error)
-
+    return render_template('home.html', error=error)
 
 @app.route('/authenticated_home')
 def authenticated_home():
     """Authenticated home page route handler."""
     if 'username' not in session:
-        return redirect(url_for('login'))
+        return redirect(url_for('home'))
     return render_template('authenticated_home.html')
-
 
 @app.route('/logout')
 def logout():
