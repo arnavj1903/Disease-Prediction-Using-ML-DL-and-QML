@@ -495,11 +495,9 @@ def predict(disease):
     # Store or update patient data
     feature_dict = {feature: value for feature, value in zip(FEATURE_LISTS[disease], features)}
 
-    print()
-    print("patient name", name)
-    print()
 
     if name:
+        # Test if patient exists
         patient = PatientData.query.filter_by(
             doctor_id=doctor_id, name=name, disease=disease, age=age
         ).first()
@@ -508,11 +506,8 @@ def predict(disease):
             patient.features = feature_dict
             patient.result = float(prediction)
             patient.risk_label = risk_label
-
-            print()
-            print("updating patient data")
-            print()
-
+            db.session.commit()  # Make sure we commit changes
+            print("Updated existing patient record")
         else:
             new_patient = PatientData(
                 doctor_id=doctor_id,
@@ -524,12 +519,8 @@ def predict(disease):
                 risk_label=risk_label
             )
             db.session.add(new_patient)
-
-            print()
-            print("adding new patient data")
-            print()
-
-        db.session.commit()
+            db.session.commit()  # Make sure we commit changes
+            print("Added new patient record")
 
     # Fetch records for display
     records, no_records = _get_patient_records(doctor_id, name, disease) if name else (None, False)
