@@ -243,14 +243,14 @@ class FlaskMedicalAppTests(unittest.TestCase):
                     "positive": {
                         'name': 'HeartPos',
                         'data': {'age': 20.0, 'sex': 1, 'cp': 0, 'trestbps': 90.0, 'chol': 200.0, 'fbs': 0,
-                                 'restecg': 1, 'thalach': 140.0, 'exang': 0, 'oldpeak': 1.0,
-                                 'slope': 2, 'ca': 1, 'thal': 2}
+                                'restecg': 1, 'thalach': 140.0, 'exang': 0, 'oldpeak': 1.0,
+                                'slope': 2, 'ca': 1, 'thal': 2}
                     },
                     "negative": {
                         'name': 'HeartNeg',
                         'data': {'age': 20.0, 'sex': 1, 'cp': 0, 'trestbps': 120.0, 'chol': 200.0, 'fbs': 0,
-                                 'restecg': 0, 'thalach': 140.0, 'exang': 0, 'oldpeak': 2.0,
-                                 'slope': 0, 'ca': 3, 'thal': 0}
+                                'restecg': 0, 'thalach': 140.0, 'exang': 0, 'oldpeak': 2.0,
+                                'slope': 0, 'ca': 3, 'thal': 0}
                     }
                 },
                 {
@@ -337,9 +337,19 @@ class FlaskMedicalAppTests(unittest.TestCase):
                     response = client.post(f"/predict/{case['disease']}", data=data, follow_redirects=True)
                     self.assertEqual(response.status_code, 200)
 
-                    expected_result = 1.0 if label == 'positive' else 0.0
-                    expected_risk = b'High Risk' if expected_result == 1.0 else b'Low Risk'
-                    self.assertIn(expected_risk, response.data, f"{label.title()} case failed for {case['disease']}")
+                    with app.app_context():
+                        record = PatientData.query.filter_by(name=patient['name'], disease=case['disease']).first()
+                        self.assertIsNotNone(record)
+
+                        # Expected prediction
+                        expected_result = 1.0 if label == 'positive' else 0.0
+                        expected_risk = "High Risk" if expected_result == 1.0 else "Low Risk"
+
+                        self.assertEqual(record.result, expected_result,
+                                        f"{label.title()} prediction mismatch for {case['disease']}")
+                        self.assertEqual(record.risk_label, expected_risk,
+                                        f"{label.title()} risk label mismatch for {case['disease']}")
+
 
 
     def test_risk_classification(self):
