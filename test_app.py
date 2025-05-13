@@ -74,7 +74,8 @@ class FlaskMedicalAppTests(unittest.TestCase):
             'action': 'Login'
         }, follow_redirects=True)
         self.assertEqual(response.status_code, 200)
-        self.assertIn(b'authenticated_home', response.data)
+        self.assertIn(b'Authenticated Home', response.data)  # Update based on your actual HTML content
+
 
     def test_failed_login(self):
         """Test failed login with invalid credentials."""
@@ -82,7 +83,7 @@ class FlaskMedicalAppTests(unittest.TestCase):
             'username': 'testdoctor',
             'password': 'wrongpassword',
             'action': 'Login'
-        })
+        }, follow_redirects=True)
         self.assertEqual(response.status_code, 200)
         self.assertIn(b'Invalid username or password', response.data)
 
@@ -95,19 +96,18 @@ class FlaskMedicalAppTests(unittest.TestCase):
         }, follow_redirects=True)
         self.assertEqual(response.status_code, 200)
 
-        # Check if the new account was added to the database
         with app.app_context():
             doctor = Doctor.query.filter_by(username='newdoctor').first()
             self.assertIsNotNone(doctor)
             self.assertTrue(doctor.check_password('newpassword'))
 
     def test_create_duplicate_account(self):
-        """Test attempting to create an account with an existing username."""
+        """Test creating an account with existing username."""
         response = self.app.post('/', data={
             'username': 'testdoctor',
-            'password': 'somepassword',
+            'password': 'any',
             'action': 'Create Account'
-        })
+        }, follow_redirects=True)
         self.assertEqual(response.status_code, 200)
         self.assertIn(b'Username already exists', response.data)
 
