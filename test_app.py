@@ -283,16 +283,15 @@ class FlaskMedicalAppTests(unittest.TestCase):
                 sess['username'] = 'testdoctor'
                 sess['doctor_id'] = doctor_id
 
-            # Mock all the necessary models & scalers
-            # We need to mock each disease, each model type with predictable behavior
+            # Mock the necessary components
             mock_scaler = MagicMock()
             mock_scaler.transform = lambda x: x  # Just return the input
 
             mock_positive_model = MagicMock()
-            mock_positive_model.predict = lambda x: [1.0]  # Always predict positive
+            mock_positive_model.predict = lambda x: [0.85]  # Always predict positive (> 0.5)
 
             mock_negative_model = MagicMock()
-            mock_negative_model.predict = lambda x: [0.0]  # Always predict negative
+            mock_negative_model.predict = lambda x: [0.2]   # Always predict negative (< 0.5)
 
             # Setup Gemini API mock
             gemini_mock = MagicMock()
@@ -341,14 +340,23 @@ class FlaskMedicalAppTests(unittest.TestCase):
                 }
             ]
 
-            with patch('app.models') as mock_models, \
-                 patch('google.generativeai.GenerativeModel', return_value=gemini_mock):
-                
-                # Configure mocks for each disease
-                mock_models.__getitem__.side_effect = lambda k: {
+            # Setup the models dictionary patch to return our mock models
+            models_dict = {
+                'heart-attack': {
                     'scaler': mock_scaler,
-                    'DT': mock_positive_model if k == 'heart-attack' else mock_negative_model,
                     'RF': mock_positive_model,
+                    'DT': mock_positive_model,
+                    'LR': mock_negative_model,
+                    'KNN': mock_positive_model,
+                    'SVM': mock_negative_model,
+                    'NB': mock_positive_model,
+                    'DL': mock_negative_model,
+                    'QNN': mock_positive_model
+                },
+                'diabetes': {
+                    'scaler': mock_scaler,
+                    'RF': mock_positive_model,
+                    'DT': mock_positive_model,
                     'LR': mock_negative_model,
                     'KNN': mock_positive_model,
                     'SVM': mock_negative_model,
@@ -356,10 +364,15 @@ class FlaskMedicalAppTests(unittest.TestCase):
                     'DL': mock_negative_model,
                     'QNN': mock_positive_model
                 }
+            }
+
+            with patch('app.models', models_dict):
+                with patch('app.get_gemini_recommendations') as mock_gemini:
+                    mock_gemini.return_value = ["Recommendation 1", "Recommendation 2", "Recommendation 3", "Recommendation 4", "Recommendation 5"]
                 
-                for case in test_cases:
-                    for label in ['positive', 'negative']:
-                        patient = case[label]
+                    for case in test_cases:
+                        # Test positive case first
+                        patient = case["positive"]
                         model = patient.get('model', case.get('model', 'DT'))
                         
                         # Add model and name to the form data
@@ -374,11 +387,27 @@ class FlaskMedicalAppTests(unittest.TestCase):
                                                 follow_redirects=True)
                             self.assertEqual(response.status_code, 200)
                             
-                            # Since we're patching the models, we can directly check if the prediction was called
-                            if label == 'positive':
-                                self.assertIn(b'High Risk', response.data)
-                            else:
-                                self.assertIn(b'Low Risk', response.data)
+                            # Check response data for high risk status
+                            self.assertIn(b'High Risk', response.data)
+                            
+                        # Test negative case
+                        patient = case["negative"]
+                        model = patient.get('model', case.get('model', 'LR'))
+                        
+                        # Add model and name to the form data
+                        form_data = dict(patient['data'])
+                        form_data['model'] = model
+                        form_data['name'] = patient['name']
+                        
+                        # Use patch to override _get_patient_records to return empty results
+                        with patch('app._get_patient_records', return_value=(None, True)):
+                            response = client.post(f"/predict/{case['disease']}", 
+                                                data=form_data, 
+                                                follow_redirects=True)
+                            self.assertEqual(response.status_code, 200)
+                            
+                            # Check response data for low risk status
+                            self.assertIn(b'Low Risk', response.data)
 
     def test_risk_classification(self):
         """Test the risk classification function."""
