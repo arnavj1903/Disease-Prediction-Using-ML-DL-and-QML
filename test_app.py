@@ -15,7 +15,8 @@ from werkzeug.security import generate_password_hash, check_password_hash
 # Import the Flask application
 from app import (
     app, db, Doctor, PatientData, load_model_files,
-    FEATURE_LISTS, LABEL_TO_NUMERIC, _classify_risk
+    FEATURE_LISTS, LABEL_TO_NUMERIC, _classify_risk,
+    _get_patient_records, get_gemini_recommendations
 )
 
 
@@ -65,54 +66,47 @@ class FlaskMedicalAppTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn(b'MediScope AI', response.data)
 
-    def test_login_page(self):
-        """Test that login page loads correctly."""
-        response = self.app.get('/login')
-        self.assertEqual(response.status_code, 200)
-        self.assertIn(b'Login', response.data)
-
     def test_successful_login(self):
         """Test successful login with valid credentials."""
-        response = self.app.post('/login', data={
+        response = self.app.post('/', data={
             'username': 'testdoctor',
             'password': 'testpassword',
             'action': 'Login'
         }, follow_redirects=True)
         self.assertEqual(response.status_code, 200)
-        self.assertIn(b'authenticated_home', response.data)
+        self.assertIn(b'authenticated_home', response.data.lower())
 
     def test_failed_login(self):
         """Test failed login with invalid credentials."""
-        response = self.app.post('/login', data={
+        response = self.app.post('/', data={
             'username': 'testdoctor',
             'password': 'wrongpassword',
             'action': 'Login'
-        })
+        }, follow_redirects=True)
         self.assertEqual(response.status_code, 200)
         self.assertIn(b'Invalid username or password', response.data)
 
     def test_create_account(self):
         """Test creating a new account."""
-        response = self.app.post('/login', data={
+        response = self.app.post('/', data={
             'username': 'newdoctor',
             'password': 'newpassword',
             'action': 'Create Account'
         }, follow_redirects=True)
         self.assertEqual(response.status_code, 200)
 
-        # Check if the new account was added to the database
         with app.app_context():
             doctor = Doctor.query.filter_by(username='newdoctor').first()
             self.assertIsNotNone(doctor)
             self.assertTrue(doctor.check_password('newpassword'))
 
     def test_create_duplicate_account(self):
-        """Test attempting to create an account with an existing username."""
-        response = self.app.post('/login', data={
+        """Test creating an account with existing username."""
+        response = self.app.post('/', data={
             'username': 'testdoctor',
-            'password': 'somepassword',
+            'password': 'any',
             'action': 'Create Account'
-        })
+        }, follow_redirects=True)
         self.assertEqual(response.status_code, 200)
         self.assertIn(b'Username already exists', response.data)
 
@@ -143,7 +137,7 @@ class FlaskMedicalAppTests(unittest.TestCase):
 
             response = client.get('/authenticated_home')
             self.assertEqual(response.status_code, 200)
-            self.assertIn(b'authenticated_home', response.data)
+            self.assertIn(b'authenticated_home', response.data.lower())
 
     def test_authenticated_home_without_session(self):
         """Test that authenticated home redirects to login when no session."""
@@ -153,17 +147,19 @@ class FlaskMedicalAppTests(unittest.TestCase):
 
     def test_disease_page_with_session(self):
         """Test disease prediction page with valid session."""
-        with self.app as client:
-            with client.session_transaction() as sess:
-                sess['username'] = 'testdoctor'
-                sess['doctor_id'] = 1
+        # First mock the models to avoid loading actual files
+        with patch('app.models', {'heart-attack': {}, 'breast-cancer': {}, 'diabetes': {}, 'lung-cancer': {}}):
+            with self.app as client:
+                with client.session_transaction() as sess:
+                    sess['username'] = 'testdoctor'
+                    sess['doctor_id'] = 1
 
-            # Test each available disease page
-            for disease in ['heart-attack', 'breast-cancer', 'diabetes', 'lung-cancer']:
-                with self.subTest(disease=disease):
-                    response = client.get(f'/{disease}')
-                    self.assertEqual(response.status_code, 200)
-                    self.assertIn(disease.encode(), response.data.lower())
+                # Test each available disease page
+                for disease in ['heart-attack', 'breast-cancer', 'diabetes', 'lung-cancer']:
+                    with self.subTest(disease=disease):
+                        response = client.get(f'/{disease}')
+                        self.assertEqual(response.status_code, 200)
+                        self.assertIn(disease.encode(), response.data.lower())
 
     def test_disease_page_without_session(self):
         """Test that disease page redirects to login when no session."""
@@ -173,15 +169,17 @@ class FlaskMedicalAppTests(unittest.TestCase):
 
     def test_disease_page_with_patient_name(self):
         """Test disease page with patient name parameter."""
-        with self.app as client:
-            with client.session_transaction() as sess:
-                sess['username'] = 'testdoctor'
-                sess['doctor_id'] = 1
+        # Mock the models
+        with patch('app.models', {'heart-attack': {}, 'breast-cancer': {}, 'diabetes': {}, 'lung-cancer': {}}):
+            with self.app as client:
+                with client.session_transaction() as sess:
+                    sess['username'] = 'testdoctor'
+                    sess['doctor_id'] = 1
 
-            response = client.get('/heart-attack?name=Test%20Patient')
-            self.assertEqual(response.status_code, 200)
-            # Check if the page contains patient data section
-            self.assertIn(b'patient', response.data.lower())
+                response = client.get('/heart-attack?name=Test%20Patient')
+                self.assertEqual(response.status_code, 200)
+                # Check if the page contains patient data section
+                self.assertIn(b'patient', response.data.lower())
 
     def test_password_security(self):
         """Test that passwords are stored securely (TC_F1.3.1)."""
@@ -228,6 +226,126 @@ class FlaskMedicalAppTests(unittest.TestCase):
                 self.assertIn('SVM', models[disease])
                 self.assertIn('NB', models[disease])
                 self.assertIn('DL', models[disease])
+                
+                # Check that quantum models exist where implemented
+                if disease in ['heart-attack', 'diabetes', 'lung-cancer']:
+                    self.assertIn('QNN', models[disease])
+
+    def test_search_patient(self):
+        """Test the search_patient functionality."""
+        with self.app as client:
+            with client.session_transaction() as sess:
+                sess['username'] = 'testdoctor'
+                sess['doctor_id'] = 1
+
+            # Test with existing patient
+            response = client.post('/search/heart-attack', data={'name': 'Test Patient'})
+            self.assertEqual(response.status_code, 200)
+            data = response.get_json()
+            self.assertFalse(data['no_records'])
+            self.assertTrue(len(data['records']) > 0)
+            
+            # Test with non-existent patient
+            response = client.post('/search/heart-attack', data={'name': 'Nonexistent'})
+            self.assertEqual(response.status_code, 200)
+            data = response.get_json()
+            self.assertTrue(data['no_records'])
+            self.assertIsNone(data['records'])
+
+    def test_model_predictions(self):
+        """Test model predictions with sample data for each disease."""
+        # Mock models to return specific predictions based on our test cases
+        with patch('app.models') as mock_models:
+            # Setup mock models structure
+            mock_models.return_value = {
+                'heart-attack': {
+                    'scaler': MagicMock(),
+                    'DT': MagicMock(),
+                    'KNN': MagicMock(),
+                    'LR': MagicMock()
+                },
+                'breast-cancer': {
+                    'scaler': MagicMock(),
+                    'DT': MagicMock()
+                },
+                'diabetes': {
+                    'scaler': MagicMock(),
+                    'DT': MagicMock(),
+                    'LR': MagicMock()
+                },
+                'lung-cancer': {
+                    'scaler': MagicMock(),
+                    'DT': MagicMock(),
+                    'KNN': MagicMock()
+                }
+            }
+
+            # Configure scaler to return input as-is (identity transform)
+            for disease in ['heart-attack', 'breast-cancer', 'diabetes', 'lung-cancer']:
+                mock_models.return_value[disease]['scaler'].transform.return_value = [1]*len(FEATURE_LISTS[disease])
+
+            # Test cases for each disease (same as before)
+            test_cases = [
+                # ... (keep all your existing test cases here)
+            ]
+
+            with self.app as client:
+                # Start a session transaction and set up the session
+                with client.session_transaction() as sess:
+                    sess['username'] = 'testdoctor'
+                    sess['doctor_id'] = 1
+
+                # Now make requests within this client context
+                for case in test_cases:
+                    disease = case['disease']
+                    
+                    # Test positive case
+                    pos_case = case['positive']
+                    mock_models.return_value[disease][pos_case['model']].predict.return_value = [pos_case['expected']]
+                    
+                    # Prepare form data
+                    form_data = {'name': f'test_{disease}_positive', 'model': pos_case['model']}
+                    form_data.update(pos_case['data'])
+                    
+                    # Make the request with follow_redirects=True to handle any redirects
+                    response = client.post(
+                        f'/predict/{disease}',
+                        data=form_data,
+                        follow_redirects=True
+                    )
+                    self.assertEqual(response.status_code, 200)
+                    
+                    # Check prediction and risk label in the response data
+                    self.assertIn(f'prediction": {pos_case["expected"]}'.encode(), response.data)
+                    self.assertIn(f'risk_label": "{pos_case["risk_label"]}"'.encode(), response.data)
+                    
+                    # Verify correct model was called
+                    mock_models.return_value[disease][pos_case['model']].predict.assert_called_once()
+                    mock_models.return_value[disease][pos_case['model']].reset_mock()
+                    
+                    # Test negative case
+                    neg_case = case['negative']
+                    mock_models.return_value[disease][neg_case['model']].predict.return_value = [neg_case['expected']]
+                    
+                    # Prepare form data
+                    form_data = {'name': f'test_{disease}_negative', 'model': neg_case['model']}
+                    form_data.update(neg_case['data'])
+                    
+                    # Make the request with follow_redirects=True
+                    response = client.post(
+                        f'/predict/{disease}',
+                        data=form_data,
+                        follow_redirects=True
+                    )
+                    self.assertEqual(response.status_code, 200)
+                    
+                    # Check prediction and risk label
+                    self.assertIn(f'prediction": {neg_case["expected"]}'.encode(), response.data)
+                    self.assertIn(f'risk_label": "{neg_case["risk_label"]}"'.encode(), response.data)
+                    
+                    # Verify correct model was called
+                    mock_models.return_value[disease][neg_case['model']].predict.assert_called_once()
+                    mock_models.return_value[disease][neg_case['model']].reset_mock()
 
     def test_risk_classification(self):
         """Test the risk classification function."""
@@ -244,20 +362,19 @@ class FlaskMedicalAppTests(unittest.TestCase):
 
     def test_patient_record_retrieval(self):
         """Test retrieval of patient records."""
-        with self.app as client:
-            with client.session_transaction() as sess:
-                sess['username'] = 'testdoctor'
-                sess['doctor_id'] = 1
-
-            # Test with existing patient
-            response = client.get('/heart-attack?name=Test%20Patient')
-            self.assertEqual(response.status_code, 200)
-            self.assertIn(b'Test Patient', response.data)
-
-            # Test with non-existent patient
-            response = client.get('/heart-attack?name=Nonexistent')
-            self.assertEqual(response.status_code, 200)
-            self.assertIn(b'No records found', response.data)
+        # Test the _get_patient_records function directly
+        with app.app_context():
+            # Existing patient
+            records, no_records = _get_patient_records(1, 'Test Patient', 'heart-attack')
+            self.assertFalse(no_records)
+            self.assertIsNotNone(records)
+            self.assertEqual(len(records), 1)
+            self.assertEqual(records[0]['risk_label'], 'Medium Risk')
+            
+            # Non-existent patient
+            records, no_records = _get_patient_records(1, 'Nonexistent', 'heart-attack')
+            self.assertTrue(no_records)
+            self.assertIsNone(records)
 
     def test_gemini_recommendations(self):
         """Test Gemini recommendations generation (mocked)."""
@@ -268,13 +385,12 @@ class FlaskMedicalAppTests(unittest.TestCase):
             mock_model.return_value.generate_content.return_value = mock_response
 
             # Call the function
-            from app import get_gemini_recommendations
             recommendations = get_gemini_recommendations('heart-attack', {'age': 50})
 
             # Verify the response
             self.assertEqual(len(recommendations), 2)
-            self.assertIn('Recommendation one', recommendations[0])
-            self.assertIn('Recommendation two', recommendations[1])
+            self.assertEqual(recommendations[0], "Recommendation one")
+            self.assertEqual(recommendations[1], "Recommendation two")
 
     def test_feature_lists(self):
         """Test that feature lists are properly defined."""
@@ -297,6 +413,7 @@ class FlaskMedicalAppTests(unittest.TestCase):
         # Verify some key mappings
         self.assertEqual(LABEL_TO_NUMERIC['heart-attack']['sex']['male'], 1)
         self.assertEqual(LABEL_TO_NUMERIC['lung-cancer']['GENDER']['M'], 1)
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -52,7 +52,8 @@ def load_model_files():
             'LR': pickle.load(open('heart_attack/LR_model', 'rb')),
             'SVM': pickle.load(open('heart_attack/SVM_model', 'rb')),
             'NB': pickle.load(open('heart_attack/NB_model', 'rb')),
-            'DL': pickle.load(open('heart_attack/DL_model', 'rb'))
+            'DL': pickle.load(open('heart_attack/DL_model', 'rb')),
+            'QNN' : pickle.load(open('heart_attack/qnn_model.pkl', 'rb'))
         },
         'breast-cancer': {
             'scaler': pickle.load(open('breast_cancer/breast_scaler', 'rb')),
@@ -72,7 +73,8 @@ def load_model_files():
             'LR': pickle.load(open('diabetes/LR_model', 'rb')),
             'SVM': pickle.load(open('diabetes/SVM_model', 'rb')),
             'NB': pickle.load(open('diabetes/NB_model', 'rb')),
-            'DL': pickle.load(open('diabetes/DL_model', 'rb'))
+            'DL': pickle.load(open('diabetes/DL_model', 'rb')),
+            'QNN' : pickle.load(open('diabetes/qnn_model.pkl', 'rb'))
         },
         'lung-cancer': {
             'scaler': pickle.load(open('lung_cancer/lung_scaler', 'rb')),
@@ -82,7 +84,8 @@ def load_model_files():
             'LR': pickle.load(open('lung_cancer/LR_model', 'rb')),
             'SVM': pickle.load(open('lung_cancer/SVM_model', 'rb')),
             'NB': pickle.load(open('lung_cancer/NB_model', 'rb')),
-            'DL': pickle.load(open('lung_cancer/DL_model', 'rb'))
+            'DL': pickle.load(open('lung_cancer/DL_model', 'rb')),
+            'QNN' : pickle.load(open('lung_cancer/qnn_model.pkl', 'rb'))
         }
     }
     logger.info("Models and scalers loaded successfully")
@@ -264,17 +267,9 @@ def favicon():
     return '', 204
 
 
-@app.route('/')
+@app.route('/', methods=['GET', 'POST'])
 def home():
-    """Home page route handler."""
-    if 'username' in session:
-        return redirect(url_for('authenticated_home'))
-    return render_template('home.html')
-
-
-@app.route('/login', methods=['GET', 'POST'])
-def login():
-    """Login page route handler."""
+    """Home page route handler with login functionality."""
     if 'username' in session:
         return redirect(url_for('authenticated_home'))
 
@@ -308,16 +303,14 @@ def login():
                 logger.info(f"New doctor account created: {username}")
                 return redirect(url_for('authenticated_home'))
 
-    return render_template('login.html', error=error)
-
+    return render_template('home.html', error=error)
 
 @app.route('/authenticated_home')
 def authenticated_home():
     """Authenticated home page route handler."""
     if 'username' not in session:
-        return redirect(url_for('login'))
+        return redirect(url_for('home'))
     return render_template('authenticated_home.html')
-
 
 @app.route('/logout')
 def logout():
@@ -331,7 +324,7 @@ def logout():
 def disease_page(disease):
     """Disease prediction page route handler."""
     if 'username' not in session:
-        return redirect(url_for('login'))
+        return redirect(url_for('home'))
 
     if disease not in models:
         return redirect(url_for('authenticated_home'))
@@ -369,6 +362,11 @@ def search_patient(disease):
         return jsonify({'records': None, 'no_records': True})
 
     records, no_records = _get_patient_records(doctor_id, name, disease)
+    
+    print()
+    print(f"patient records of {name}", records)
+    print()
+
     return jsonify({
         'records': records,
         'no_records': no_records
@@ -394,6 +392,11 @@ def predict(disease):
     age = None
     error_message = None
 
+    #checking input data
+    print()
+    print("input data", request.form)
+    print()
+
     for feature in FEATURE_LISTS[disease]:
         value = request.form.get(feature)
         if not value:
@@ -414,7 +417,7 @@ def predict(disease):
 
         features.append(value)
         if feature.lower() in ['age', 'AGE']:
-            age = int(value)
+            age = int(float(value))  # Convert to float first, then to int
 
     # If there was an error in feature extraction
     if error_message:
@@ -455,15 +458,8 @@ def predict(disease):
             model_input = [scaled_features]
             prediction = models[disease][model_type].predict(model_input)[0]
 
-        # For binary classification models, ensure prediction is 0 or 1
-        if isinstance(prediction, (np.integer, np.floating)):
-            prediction = float(prediction)
-            if model_type != 'DL' and prediction not in [0, 1]:
-                # For models returning probabilities, threshold at 0.5
-                if hasattr(models[disease][model_type], "predict_proba"):
-                    probs = models[disease][model_type].predict_proba(model_input)[0]
-                    prediction = float(probs[1])  # Probability of positive class
-                    prediction = 1.0 if prediction >= 0.5 else 0.0
+        prediction = float(prediction)  # Convert to float for consistent type
+        prediction = 1.0 if prediction >= 0.5 else 0.0
 
         logger.info(f"Prediction for {name} with {model_type}: {prediction}")
     except Exception as e:
@@ -489,28 +485,52 @@ def predict(disease):
     # Store or update patient data
     feature_dict = {feature: value for feature, value in zip(FEATURE_LISTS[disease], features)}
 
+    print()
+    print(f"Saving patient data for {name}, disease: {disease}, doctor_id: {doctor_id}, age: {age}")
+    print()
+
     if name:
-        patient = PatientData.query.filter_by(
-            doctor_id=doctor_id, name=name, disease=disease, age=age
-        ).first()
+        try:
+            # Check if patient exists
+            patient = PatientData.query.filter_by(
+                doctor_id=doctor_id, name=name, disease=disease, age=age
+            ).first()
 
-        if patient:
-            patient.features = feature_dict
-            patient.result = float(prediction)
-            patient.risk_label = risk_label
-        else:
-            new_patient = PatientData(
-                doctor_id=doctor_id,
-                name=name,
-                disease=disease,
-                age=age,
-                features=feature_dict,
-                result=float(prediction),
-                risk_label=risk_label
-            )
-            db.session.add(new_patient)
-
-        db.session.commit()
+            if patient:
+                print(f"Updating existing patient record: {patient.id}")
+                patient.features = feature_dict
+                patient.result = float(prediction)
+                patient.risk_label = risk_label
+            else:
+                print(f"Creating new patient record for {name}")
+                patient = PatientData(
+                    doctor_id=doctor_id,
+                    name=name,
+                    disease=disease,
+                    age=age,
+                    features=feature_dict,
+                    result=float(prediction),
+                    risk_label=risk_label
+                )
+                db.session.add(patient)
+            
+            db.session.commit()
+            print(f"Database commit successful for {name}")
+            
+            # Verify the record was saved
+            verification = PatientData.query.filter_by(
+                doctor_id=doctor_id, name=name, disease=disease, age=age
+            ).first()
+            
+            if verification:
+                print(f"Verified record exists with ID: {verification.id}")
+            else:
+                print("WARNING: Failed to verify record exists after save!")
+                
+        except Exception as e:
+            print(f"Error saving patient data: {str(e)}")
+            db.session.rollback()
+            logger.error(f"Database error: {str(e)}")
 
     # Fetch records for display
     records, no_records = _get_patient_records(doctor_id, name, disease) if name else (None, False)
